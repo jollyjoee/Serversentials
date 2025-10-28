@@ -1,0 +1,34 @@
+messages:
+  prefix: "<gold><b>Foliasentials</b></gold> <dark_gray>|| </dark_gray>"
+  no-permission: "{prefix}<red>You do not have permission to use this command!</red>"
+
+database:
+  type: sqlite # or "mysql" use sqlite if you haven't set up a mysql server
+
+  # SQLite options
+  file: serversentials.db
+
+  # MySQL options (used only if type = mysql)
+  host: localhost
+  port: 3306
+  database: serversentials
+  username: root
+  password: ""
+  useSSL: false
+  pool-size: 10
+
+modules:
+  gamemode: true
+  fly: true
+  home: true
+  teleport: true
+  nick:
+    enabled: true
+    maxlength: 32 #This includes MiniMessage formatting <red>JollyJoe <--- counts 13
+  tpa:
+    enabled: true
+    expiration: 20
+  tpahere:
+    enabled: true
+    expiration: 20
+  tptoggle: true

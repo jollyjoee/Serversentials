@@ -1,0 +1,42 @@
+name: Serversentials
+version: '1.0'
+main: com.jolly.serversentials.Serversentials
+api-version: '1.21'
+authors: [ Jolly ]
+folia-supported: true
+softdepend: ["PlaceholderAPI"]
+commands:
+  fly:
+    description: Allows flight
+    default: false
+  gms:
+    description: Gamemode Survival
+    default: false
+  gmc:
+    description: Gamemode Creative
+    default: false
+  gmsp:
+    description: Gamemode Spectator
+    default: false
+  nick:
+    description: Change Displayname
+    default: false
+  tpa:
+    description: Teleport to a player
+    default: false
+  tpahere:
+    description: Teleport a player to you
+    aliases: [tpah]
+    default: false
+  tpaccept:
+    description: Accepts a teleport request
+    aliases: [tpc]
+    default: false
+  tpdeny:
+    description: Denies a teleport request
+    aliases: [tpd]
+    default: false
+  tptoggle:
+    description: Toggles teleport requests on/off
+    aliases: [tpt]
+    default: false
