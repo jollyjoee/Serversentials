@@ -4,8 +4,12 @@ main: com.jolly.serversentials.Serversentials
 api-version: '1.21'
 authors: [ Jolly ]
 folia-supported: true
-softdepend: ["PlaceholderAPI"]
+softdepend: [PlaceholderAPI, Vault]
 commands:
+  ssreload:
+    description: Reload Serversentials configs
+    usage: /ssreload
+    default: op
   fly:
     description: Allows flight
     default: false
@@ -40,3 +44,235 @@ commands:
     description: Toggles teleport requests on/off
     aliases: [tpt]
     default: false
+  tpo:
+    description: Force teleport to a player
+    default: false
+  tpohere:
+    description: Force teleport a player to you
+    default: false
+  home:
+    description: Teleport to a set home
+    default: false
+  sethome:
+    description: Set a home to use /home to
+    default: false
+  delhome:
+    description: Deletes a specified home
+    default: false
+  homes:
+    description: Lists all homes
+    default: false
+  craft:
+    default: false
+  anvil:
+    default: false
+  loom:
+    default: false
+  echest:
+    aliases: [ec]
+    default: false
+  invsee:
+    aliases: [inv]
+    default: false
+  stonecutter:
+    aliases: [scutter]
+    default: false
+  smithingtable:
+    aliases: [smith]
+    default: false
+  vanish:
+    aliases: [v]
+    default: false
+  #hide:
+    #default: false
+  monitor:
+    aliases: [mon]
+    default: false
+  heal:
+    default: false
+  feed:
+    default: false
+  god:
+    default: false
+  warp:
+    default: false
+  warps:
+    default: false
+  setwarp:
+    default: false
+  delwarp:
+    default: false
+  item:
+    aliases: [i]
+    default: false
+  enchant:
+    aliases: [ench]
+    default: false
+  balance:
+    description: Check your balance
+    usage: /balance [player]
+    default: false
+    aliases: [bal]
+  pay:
+    description: Pay another player
+    usage: /pay <player> <amount>
+    default: false
+  economy:
+    description: Admin economy commands
+    usage: /economy <give/set/deduct> <player> <amount>
+    default: false
+    aliases: [eco]
+  baltop:
+    description: Show top balances
+    usage: /baltop [page]
+    default: false
+
+permissions:
+  serversentials.reload:
+    default: op
+  serversentials.fly:
+    description: Allows flight
+    default: op
+  serversentials.gms:
+    description: Gamemode Survival
+    default: op
+  serversentials.gmc:
+    description: Gamemode Creative
+    default: op
+  serversentials.gmsp:
+    description: Gamemode Spectator
+    default: op
+  serversentials.nick:
+    description: Change nickname
+    default: op
+  serversentials.tpa:
+    description: Tp to a player
+    default: op
+  serversentials.tpahere:
+    description: Tp a player to you
+    default: op
+  serversentials.tpaccept:
+    description: Accept teleport request
+    default: op
+  serversentials.tpdeny:
+    description: Deny teleport request
+    default: op
+  serversentials.tptoggle:
+    description: Toggle tp status
+    default: op
+  serversentials.tpo:
+    description: Override tp to player
+    default: op
+  serversentials.tpohere:
+    description: Override tphere to player
+    default: op
+  serversentials.home:
+    description: Teleport to home
+    default: op
+  serversentials.home.cooldown.<#>:
+    description: Specify the cooldown per /home command
+    default: op
+  serversentials.home.bypasscooldown:
+    description: Bypass /home command cooldown
+    default: op
+  serversentials.home.countdown.<#>:
+    description: How many seconds before actual teleport
+    default: op
+  serversentials.sethome:
+    description: Sets a home
+    default: op
+  serversentials.sethome.<#>:
+    description: Specify how many homes a player/group can create
+    default: op
+  serversentials.delhome:
+    description: Deletes a home
+    default: op
+  serversentials.homes:
+    description: Lists homes
+    default: op
+  serversentials.echest:
+    default: op
+  serversentials.craft:
+    default: op
+  serversentials.loom:
+    default: op
+  serversentials.anvil:
+    default: op
+  serversentials.stonecutter:
+    default: op
+  serversentials.smithingtable:
+    default: op
+  serversentials.invsee:
+    default: op
+  serversentials.invsee.edit:
+    default: op
+  serversentials.vanish:
+    default: op
+  serversentials.vanish.see:
+    default: op
+  serversentials.vanish.others:
+    default: op
+  #serversentials.hide:
+    #default: op
+  #serversentials.hide.others:
+    #default: op
+  serversentials.monitor:
+    default: op
+  serversentials.heal:
+    default: op
+  serversentials.heal.others:
+    default: op
+  serversentials.feed:
+    default: op
+  serversentials.feed.others:
+    default: op
+  serversentials.god:
+    default: op
+  serversentials.god.others:
+    default: op
+  serversentials.warp:
+    default: op
+  serversentials.warp.<name>:
+    default: op
+  serversentials.warps:
+    default: op
+  serversentials.warp.cooldown:
+    default: op
+  serversentials.warp.countdown:
+    default: op
+  serversentials.setwarp:
+    default: op
+  serversentials.item:
+    default: op
+  serversentials.item.others:
+    default: op
+  serversentials.enchant:
+    default: op
+  serversentials.enchant.others:
+    default: op
+  serversentials.enchant.<enchantname>:
+    default: op
+  serversentials.balance:
+    description: Allows a player to check their own balance
+    default: op
+  serversentials.balance.others:
+    description: Allows a player to check another player's balance
+    default: op
+  serversentials.pay:
+    description: Allows a player to pay other players
+    default: op
+  serversentials.economy:
+    description: Allows use of /economy
+    default: op
+  serversentials.economy.give:
+    description: Allows giving money to a player
+    default: op
+  serversentials.economy.set:
+    description: Allows setting a player's balance
+    default: op
+  serversentials.economy.deduct:
+    description: Allows deducting money from a player
+    default: op
+  serversentials.baltop:
+    description: Allows viewing the top balances on the server
+    default: op

@@ -23,7 +23,8 @@ public class DatabaseManager {
 
     public DatabaseManager(JavaPlugin plugin, boolean useMySQL,
                            String host, int port, String database,
-                           String username, String password) {
+                           String username, String password,
+                           File sqliteFile) {
         this.plugin = plugin;
         this.useMySQL = useMySQL;
         this.host = host;
@@ -31,7 +32,11 @@ public class DatabaseManager {
         this.database = database;
         this.username = username;
         this.password = password;
-        this.sqliteFile = new File(plugin.getDataFolder(), "data.db");
+        this.sqliteFile = sqliteFile;
+    }
+
+    public boolean isMySQL() {
+        return useMySQL;
     }
 
     // ================================
@@ -54,7 +59,9 @@ public class DatabaseManager {
                     e.printStackTrace();
                 }
             }
-            connection = DriverManager.getConnection("jdbc:sqlite:" + sqliteFile);
+
+            String url = "jdbc:sqlite:" + sqliteFile.getAbsolutePath();
+            connection = DriverManager.getConnection(url);
         }
 
         return connection;
@@ -82,11 +89,6 @@ public class DatabaseManager {
     // ================================
     // 🔹 Safe Query Helpers (Auto-close)
     // ================================
-
-    /**
-     * Run a SELECT query safely and process the ResultSet using a callback.
-     * Auto-closes resources.
-     */
     public <T> T querySafe(String sql, ResultProcessor<T> processor, Object... params) {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -100,9 +102,6 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Run an UPDATE / INSERT / DELETE query safely (auto-closing).
-     */
     public int updateSafe(String sql, Object... params) {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -117,7 +116,6 @@ public class DatabaseManager {
     // ================================
     // 🔹 Async Helpers (Folia-safe)
     // ================================
-
     public <T> CompletableFuture<T> querySafeAsync(String sql, ResultProcessor<T> processor, Object... params) {
         return CompletableFuture.supplyAsync(() -> querySafe(sql, processor, params));
     }

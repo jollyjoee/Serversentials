@@ -38,7 +38,7 @@ public class GMSP implements CommandExecutor, TabCompleter {
             }
             Player target = Bukkit.getPlayerExact(args[0]);
             if (target != null && target.isOnline()) {
-                target.setGameMode(GameMode.CREATIVE);
+                target.setGameMode(GameMode.SPECTATOR);
                 target.sendActionBar(plugin.mm("<green>Your gamemode has been set to Spectator!"));
                 player.sendActionBar(plugin.mm("<green>Set " + target.getName() + " to Spectator mode."));
                 return true;
@@ -47,8 +47,8 @@ public class GMSP implements CommandExecutor, TabCompleter {
                 return true;
             }
         }
-        if (!player.getGameMode().equals(GameMode.CREATIVE)) {
-            player.setGameMode(GameMode.CREATIVE);
+        if (!player.getGameMode().equals(GameMode.SPECTATOR)) {
+            player.setGameMode(GameMode.SPECTATOR);
             player.sendActionBar(plugin.mm("<green>Your gamemode has been set to Spectator."));
         } else {
             player.sendActionBar(plugin.mm("<yellow>You are already in Spectator mode."));

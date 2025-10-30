@@ -32,6 +32,10 @@ public class Nick implements CommandExecutor, TabCompleter {
             sender.sendMessage("Only players can use this command!");
             return true;
         }
+        if (!player.hasPermission("serversentials.nick")) {
+            player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+            return true;
+        }
         int maxNickLength = plugin.getConfig().getInt("modules.nick.maxlength");
         // /nick  -> reset own nickname
         if (args.length == 0) {
@@ -168,7 +172,7 @@ public class Nick implements CommandExecutor, TabCompleter {
     private void applyNickname(Player player, Component nickname) {
         player.displayName(nickname);
         player.playerListName(nickname);
-        Bukkit.getLogger().info("[Serversentials] Applied nickname for " + player.getName());
+        //Bukkit.getLogger().info("[Serversentials] Applied nickname for " + player.getName());
     }
 
     @Override

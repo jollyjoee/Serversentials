@@ -1,13 +1,12 @@
-messages:
-  prefix: "<gold><b>Foliasentials</b></gold> <dark_gray>|| </dark_gray>"
-  no-permission: "{prefix}<red>You do not have permission to use this command!</red>"
+server-name: "default"
+#If using on a proxy network, change this to the configured server name for this server
+#If running a single server, no need to change this
+#Set this properly if on a proxy network to avoid issues with teleporting!!!
 
 database:
   type: sqlite # or "mysql" use sqlite if you haven't set up a mysql server
-
   # SQLite options
   file: serversentials.db
-
   # MySQL options (used only if type = mysql)
   host: localhost
   port: 3306
@@ -18,17 +17,74 @@ database:
   pool-size: 10
 
 modules:
-  gamemode: true
-  fly: true
+  # serversentials.home <- /home and /sethome
+  # serversentials.sethome.<#> <- Number of homes
+  # serversentials.home.cooldown.<#> <- Cooldown per /home command
+  # servesentials.home.countdown.<#> <- Countdown before teleporting
   home: true
-  teleport: true
-  nick:
+  nick: # serversentials.nick
     enabled: true
-    maxlength: 32 #This includes MiniMessage formatting <red>JollyJoe <--- counts 13
-  tpa:
+    maxlength: 32 # This includes MiniMessage formatting <red>JollyJoe <- counts 13
+  #---------TELEPORTS----------
+  tpa: #serversentials.tpa
     enabled: true
-    expiration: 20
-  tpahere:
+    expiration: 20 # Seconds before teleport requests expire
+  tpahere: # serversentials.tpahere
     enabled: true
-    expiration: 20
-  tptoggle: true
+    expiration: 20 # Seconds before teleport requests expire
+  tptoggle: true # serversentials.tptoggle <- Toggles teleport requests on/off
+  tpo: true # serversentials.tpo <- Tpa override
+  tpohere: true # serversentials.tpohere <- Tpahere override
+
+  # serversentials.warp <- /warp
+  # serversentials.warp.<warpname> <- /warp <name>
+  # serversentials.setwarp <- /setwarp
+  # serversentials.warp.cooldown.<#>
+  # serversentials.warp.countdown.<#>
+  warp: true
+  #---------UTILITIES----------
+  craft: true # serversentials.craft
+  anvil: true # serversentials.anvil
+  loom: true # serversentials.loom
+  echest: true # serversentials.echest
+  stonecutter: true # serversentials.stonecutter
+  smithingtable: true # serversentials.smithingtable
+  #---------MODERATION-----------
+  invsee: true # serversentials.invsee
+  vanish: true # serversentials.vanish || serversentials.vanish.see || serversentials.vanish.others
+  gamemode: true # serversentials.gms/gmc/gmsp || serversentials.gms/gmc/gmsp.others
+  fly: true # serversentials.fly || serversentials.fly.others
+  monitor: true # serversentials.monitor
+  #---------EXTRAS----------
+  heal: true # serversentials.heal || serversentials.heal.others
+  feed: true # serversentials.feed || serversentials.feed.others
+  god: true # serversentials.god || serversentials.god.others
+  item: # serversentials.item || serversentials.item.others <- /item command
+    enabled: true
+    respect-max-stack-size: true # true = don't allow oversized stacks
+  enchant:
+    respect-max-levels: true # true = don't allow over-limit enchants
+  #---------ECONOMY-------
+  economy:
+    enabled: true
+    starting-balance: 100.0
+    currency-symbol: "$"
+    formatted: true # true = show commas and decimals, false = plain numbers
+    decimals: 2 # number of decimal places
+
+messages:
+  no-permission: "<red>You do not have permission to use this command!</red>"
+  player-not-found: "<red>Player not found!</red>"
+  starting-balance: "<green>You received your starting balance of {symbol}{amount}!</green>"
+  balance-display: "<green>{player}'s balance: <yellow>{symbol}{balance}</yellow>"
+  pay-usage: "<red>Usage: /pay <player> <amount>"
+  pay-insufficient: "<red>You do not have enough funds!"
+  pay-sent: "<green>You sent {symbol}{amount} to {player}."
+  pay-received: "<green>You received {symbol}{amount} from {player}."
+  economy-usage: "<red>Usage: /economy <give/set/deduct> <player> <amount>"
+  economy-success: "<green>{action} {symbol}{amount} for {player}."
+  baltop-header: "<gold>--- Top balances - Page: {page} ----"
+  baltop-line: "<yellow>{rank}. {player} - {symbol}{balance}"
+  baltop-empty: "<red>No balances found!"
+  invalid-number: "<red>Invalid number!"
+  invalid-recipient: "<red>You cannot send money to yourself!"

@@ -108,9 +108,9 @@ public class Fly implements CommandExecutor, TabCompleter {
         return plugin.getDatabase().querySafeAsync(
                 "SELECT flying FROM fly_data WHERE uuid = ?",
                 rs -> {
-                    Bukkit.getLogger().info("[Serversentials] Result handler called for " + player.getName());
+                    //Bukkit.getLogger().info("[Serversentials] Result handler called for " + player.getName());
                     if (!rs.next()) {
-                        Bukkit.getLogger().info("[Serversentials] No DB record found for " + player.getName());
+                        //Bukkit.getLogger().info("[Serversentials] No DB record found for " + player.getName());
                         return null;
                     }
 

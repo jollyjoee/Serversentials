@@ -120,7 +120,7 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         String typeMessage = type == RequestType.TPA ? "to teleport to you!" : "to teleport you to them!";
         sender.sendActionBar(mm.deserialize("<green>Teleport request sent to <yellow>" + receiver.getName()));
         receiver.sendActionBar(mm.deserialize("<yellow>" + sender.getName() + " <green>wants " + typeMessage));
-        receiver.sendActionBar(mm.deserialize("<gray>Type <aqua>/tpaccept | /tpac</aqua> to accept or <red>/tpdeny | /tpd</red> to deny."));
+        receiver.sendActionBar(mm.deserialize("<gray>Type <aqua>/tpaccept | /tpc</aqua><gray> to accept or <red>/tpdeny | /tpd</red><gray> to deny."));
 
         // Schedule expiration
         Object expireTask = scheduler.runLater(receiver, () -> {
@@ -231,6 +231,10 @@ public class TpaManager implements CommandExecutor, TabCompleter {
     // TP Toggle Command
     // -----------------------------
     private void handleToggle(Player player) {
+        if (!player.hasPermission("serversentials.tptoggle")) {
+            player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+            return;
+        }
         UUID uuid = player.getUniqueId();
         boolean currentlyEnabled = tptoggleCache.getOrDefault(uuid, true);
         boolean newState = !currentlyEnabled;
