@@ -1,8 +1,9 @@
 name: Serversentials
-version: '1.0'
+version: '1.2'
 main: com.jolly.serversentials.Serversentials
 api-version: '1.21'
 authors: [ Jolly ]
+load: STARTUP
 folia-supported: true
 softdepend: [PlaceholderAPI, Vault]
 commands:
@@ -126,6 +127,25 @@ commands:
     description: Show top balances
     usage: /baltop [page]
     default: false
+  day:
+    description: Set time to day
+    default: false
+  noon:
+    description: Set time to noon
+    default: false
+  night:
+    description: Set time to night
+    default: false
+  clear:
+    description: Set weather to clear
+    default: false
+  rain:
+    description: Set weather to rain
+    default: false
+  storm:
+    description: Set weather to storm
+    default: false
+
 
 permissions:
   serversentials.reload:
@@ -275,4 +295,7 @@ permissions:
     default: op
   serversentials.baltop:
     description: Allows viewing the top balances on the server
+    default: op
+  serversentials.worldcommands:
+    description: Allows usage of /day, /noon, /night, /clear, /rain, /storm
     default: op

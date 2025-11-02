@@ -64,6 +64,7 @@ modules:
     respect-max-stack-size: true # true = don't allow oversized stacks
   enchant:
     respect-max-levels: true # true = don't allow over-limit enchants
+  worldcommands: true #/day, /night, /noon, /clear, /rain, /storm
   #---------ECONOMY-------
   economy:
     enabled: true

@@ -1,5 +1,6 @@
 package com.jolly.serversentials;
 
+import com.jolly.serversentials.commands.WorldCommands;
 import com.jolly.serversentials.economy.*;
 import com.jolly.serversentials.commands.Containers;
 import com.jolly.serversentials.commands.teleports.*;
@@ -14,6 +15,9 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -73,6 +77,7 @@ public final class Serversentials extends JavaPlugin {
         WarpManager warp = new WarpManager(this, scheduler);
         Item item = new Item(this, scheduler);
         Enchant ench = new Enchant(this, scheduler);
+        WorldCommands world = new WorldCommands(this, scheduler);
         // ================================
         // 💰 ECONOMY INITIALIZATION
         // ================================
@@ -83,7 +88,7 @@ public final class Serversentials extends JavaPlugin {
         EconomyManager economy = new EconomyManager(db, scheduler, vaultHook, getConfig().getString("economy.currency-symbol", "$"), this);
 
         // Immediately register with Vault synchronously
-        Bukkit.getServicesManager().register(net.milkbowl.vault.economy.Economy.class, economy, this, org.bukkit.plugin.ServicePriority.Normal);
+        Bukkit.getServicesManager().register(net.milkbowl.vault.economy.Economy.class, economy, this, org.bukkit.plugin.ServicePriority.Highest);
 
         getLogger().info("✅ Serversentials economy registered with Vault (if Vault is present)");
         // ================================
@@ -242,6 +247,14 @@ public final class Serversentials extends JavaPlugin {
             getCommand("economy").setTabCompleter(new EconomyCommand(this, economy));
             getLogger().info("[Serversentials]✅ Economy module enabled.");
         }
+        if (isModuleEnabled("worldcommands")) {
+            getCommand("day").setExecutor(world);
+            getCommand("night").setExecutor(world);
+            getCommand("noon").setExecutor(world);
+            getCommand("clear").setExecutor(world);
+            getCommand("rain").setExecutor(world);
+            getCommand("storm").setExecutor(world);
+        }
         //if (isModuleEnabled("hide")) {
         //    getCommand("hide").setExecutor(hide);
         //}
@@ -254,8 +267,20 @@ public final class Serversentials extends JavaPlugin {
                 new Placeholder(this, nick, fly, vanish, hide, economy).register();
                 getLogger().info("✅ Registered Serversentials placeholders with PlaceholderAPI!");
             }, 20L);
-        }
 
+        } else {
+            Bukkit.getPluginManager().registerEvents(new Listener() {
+                @EventHandler
+                public void onPluginEnable(PluginEnableEvent event) {
+                    if (event.getPlugin().getName().equals("PlaceholderAPI")) {
+                        scheduler.runLater(() -> {
+                            new Placeholder(Serversentials.this, nick, fly, vanish, hide, economy).register();
+                            getLogger().info("✅ Registered Serversentials placeholders with PlaceholderAPI (delayed)!");
+                        }, 20L);
+                    }
+                }
+            }, this);
+        }
         // ================================
         // 🧱 TABLE CREATION
         // ================================

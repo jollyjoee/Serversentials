@@ -205,15 +205,12 @@ public class EconomyManager implements Economy {
 
     @Override
     public EconomyResponse depositPlayer(String playerName, String world, double amount) {
-        OfflinePlayer player = Bukkit.getOfflinePlayer(playerName);
-        addBalanceAsync(player.getUniqueId(), amount).join();
-        return new EconomyResponse(amount, getBalance(player), EconomyResponse.ResponseType.SUCCESS, "Deposit successful");
+        return depositPlayer(playerName, amount);
     }
 
     @Override
     public EconomyResponse depositPlayer(OfflinePlayer player, String world, double amount) {
-        addBalanceAsync(player.getUniqueId(), amount).join();
-        return new EconomyResponse(amount, getBalance(player), EconomyResponse.ResponseType.SUCCESS, "Deposit successful");
+        return depositPlayer(player, amount);
     }
 
     // --------------------------
@@ -237,28 +234,78 @@ public class EconomyManager implements Economy {
     public boolean has(OfflinePlayer player, double amount) { return getBalance(player) >= amount; }
 
     @Override
-    public EconomyResponse withdrawPlayer(String playerName, double amount) {
-        deductBalanceAsync(Bukkit.getOfflinePlayer(playerName).getUniqueId(), amount).join();
-        return null;
-    }
-
-    @Override
     public EconomyResponse withdrawPlayer(OfflinePlayer player, double amount) {
-        deductBalanceAsync(player.getUniqueId(), amount).join();
-        return null;
+        if (amount < 0) {
+            return new EconomyResponse(amount, getBalance(player),
+                    EconomyResponse.ResponseType.FAILURE, "Amount must be positive");
+        }
+
+        try {
+            boolean success = deductBalanceAsync(player.getUniqueId(), amount)
+                    .thenApply(v -> true)
+                    .exceptionally(ex -> false)
+                    .get(); // Forces sync result only for Vault
+
+            double newBalance = getBalance(player);
+
+            if (!success || newBalance < 0) {
+                // revert just in case
+                addBalanceAsync(player.getUniqueId(), amount).join();
+                return new EconomyResponse(amount, getBalance(player),
+                        EconomyResponse.ResponseType.FAILURE, "Insufficient funds");
+            }
+
+            return new EconomyResponse(amount, newBalance,
+                    EconomyResponse.ResponseType.SUCCESS, "Withdraw successful");
+
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Withdraw failed for " + player.getName() + ": " + ex.getMessage());
+            return new EconomyResponse(amount, getBalance(player),
+                    EconomyResponse.ResponseType.FAILURE, ex.getMessage());
+        }
     }
 
     @Override
-    public EconomyResponse depositPlayer(String playerName, double amount) {
-        addBalanceAsync(Bukkit.getOfflinePlayer(playerName).getUniqueId(), amount).join();
-        return null;
+    public EconomyResponse withdrawPlayer(String playerName, double amount) {
+        return withdrawPlayer(Bukkit.getOfflinePlayer(playerName), amount);
     }
 
     @Override
     public EconomyResponse depositPlayer(OfflinePlayer player, double amount) {
-        addBalanceAsync(player.getUniqueId(), amount).join();
-        return null;
+        if (amount < 0) {
+            return new EconomyResponse(amount, getBalance(player),
+                    EconomyResponse.ResponseType.FAILURE, "Amount must be positive");
+        }
+
+        try {
+            boolean success = addBalanceAsync(player.getUniqueId(), amount)
+                    .thenApply(v -> true)
+                    .exceptionally(ex -> false)
+                    .get();
+
+            double newBalance = getBalance(player);
+
+            if (!success) {
+                return new EconomyResponse(amount, newBalance,
+                        EconomyResponse.ResponseType.FAILURE, "Deposit failed");
+            }
+
+            return new EconomyResponse(amount, newBalance,
+                    EconomyResponse.ResponseType.SUCCESS, "Deposit successful");
+
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Deposit failed for " + player.getName() + ": " + ex.getMessage());
+            double balance = getBalance(player);
+            return new EconomyResponse(amount, balance,
+                    EconomyResponse.ResponseType.FAILURE, ex.getMessage());
+        }
     }
+
+    @Override
+    public EconomyResponse depositPlayer(String playerName, double amount) {
+        return depositPlayer(Bukkit.getOfflinePlayer(playerName), amount);
+    }
+
 
 
     // --------------------------
