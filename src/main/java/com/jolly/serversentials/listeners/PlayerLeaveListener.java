@@ -23,7 +23,8 @@ public class PlayerLeaveListener implements Listener {
 
         scheduler.runAsync(() -> {
             plugin.getDatabase().updateSafe(
-                    "INSERT INTO leave_data (uuid, world, x, y, z) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO leave_data (uuid, world, x, y, z) VALUES (?, ?, ?, ?, ?) " +
+                            "ON CONFLICT(uuid) DO UPDATE SET world = excluded.world, x = excluded.x, y = excluded.y, z = excluded.z",
                     player.getUniqueId().toString(),
                     player.getWorld().getName(),
                     player.getLocation().getX(),

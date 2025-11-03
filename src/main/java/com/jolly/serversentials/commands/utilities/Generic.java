@@ -50,7 +50,6 @@ public class Generic implements CommandExecutor, TabCompleter {
             case "heal" -> handleHeal(player, args);
             case "feed" -> handleFeed(player, args);
             case "god" -> handleGod(player, args);
-            case "top" -> handleTop(player);
             default -> player.sendActionBar(mm.deserialize("<red>Unknown command!"));
         }
 
@@ -142,20 +141,6 @@ public class Generic implements CommandExecutor, TabCompleter {
             if (!target.equals(player))
                 player.sendActionBar(mm.deserialize("<yellow>Disabled god mode for <white>" + target.getName() + "</white>."));
         }
-    }
-
-    private void handleTop(Player player) {
-        if (!player.hasPermission("serversentials.top")) {
-            player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
-            return;
-        }
-        World world = player.getWorld();
-        Block topBlock = world.getHighestBlockAt(player.getLocation());
-        while (!topBlock.getType().isSolid() && topBlock.getY() > 0) {
-            topBlock = topBlock.getRelative(BlockFace.DOWN);
-        }
-        Location teleportLoc = topBlock.getLocation().add(0.5, 1, 0.5); // center in block + 1 Y
-        player.teleport(teleportLoc);
     }
 
     // ==========================

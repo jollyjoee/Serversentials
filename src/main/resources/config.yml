@@ -42,6 +42,10 @@ modules:
   # serversentials.warp.cooldown.<#>
   # serversentials.warp.countdown.<#>
   warp: true
+  teleport:
+    top: true
+    rtp: true #I recommend using my RTP plugin for more configuration!
+    # https://modrinth.com/plugin/rtp-gui (if you DO install this, set rtp: false)
   #---------UTILITIES----------
   craft: true # serversentials.craft
   anvil: true # serversentials.anvil

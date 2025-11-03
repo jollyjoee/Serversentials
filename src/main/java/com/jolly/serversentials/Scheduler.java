@@ -2,6 +2,7 @@ package com.jolly.serversentials;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -50,7 +51,7 @@ public class Scheduler {
     /** Run a task immediately in the player’s region (Folia-safe). */
     public void run(Player player, Runnable task) {
         if (folia) {
-            Bukkit.getRegionScheduler().run(plugin, player.getLocation() ,t -> {
+            Bukkit.getRegionScheduler().run(plugin, player.getLocation(),t -> {
                 if (!plugin.isEnabled() || !player.isOnline()) return;
                 task.run();
             });

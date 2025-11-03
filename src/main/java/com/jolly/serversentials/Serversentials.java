@@ -78,6 +78,7 @@ public final class Serversentials extends JavaPlugin {
         Item item = new Item(this, scheduler);
         Enchant ench = new Enchant(this, scheduler);
         WorldCommands world = new WorldCommands(this, scheduler);
+        Teleports tp = new Teleports(this, scheduler);
         // ================================
         // 💰 ECONOMY INITIALIZATION
         // ================================
@@ -254,6 +255,13 @@ public final class Serversentials extends JavaPlugin {
             getCommand("clear").setExecutor(world);
             getCommand("rain").setExecutor(world);
             getCommand("storm").setExecutor(world);
+            getLogger().info("[Serversentials]✅ Worldcommands module enabled.");
+        }
+        if (isModuleEnabled("teleport.top")) {
+            getCommand("top").setExecutor(tp);
+        }
+        if (isModuleEnabled("teleport.rtp")) {
+            getCommand("rtp").setExecutor(tp);
         }
         //if (isModuleEnabled("hide")) {
         //    getCommand("hide").setExecutor(hide);

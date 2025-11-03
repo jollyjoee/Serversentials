@@ -5,7 +5,8 @@ api-version: '1.21'
 authors: [ Jolly ]
 load: STARTUP
 folia-supported: true
-softdepend: [PlaceholderAPI, Vault]
+softdepend: [PlaceholderAPI]
+depend: [Vault]
 commands:
   ssreload:
     description: Reload Serversentials configs
@@ -144,6 +145,12 @@ commands:
     default: false
   storm:
     description: Set weather to storm
+    default: false
+  top:
+    description: Teleport to the top-most block at your coordinates
+    default: false
+  rtp:
+    description: Randomly teleport in your world inside the worldborder
     default: false
 
 
@@ -298,4 +305,10 @@ permissions:
     default: op
   serversentials.worldcommands:
     description: Allows usage of /day, /noon, /night, /clear, /rain, /storm
+    default: op
+  serversentials.teleport.top:
+    description: Allows /top
+    default: op
+  serversentials.teleport.rtp:
+    description: Allows /rtp
     default: op
