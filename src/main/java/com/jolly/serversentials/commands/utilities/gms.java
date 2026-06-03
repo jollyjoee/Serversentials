@@ -27,6 +27,11 @@ public class GMS implements CommandExecutor, TabCompleter {
             return true;
         }
         if (!command.getName().equalsIgnoreCase("gms")) return false;
+
+        if (!plugin.isModuleEnabled("gamemode")) {
+            player.sendActionBar(plugin.mm("<red>This module is currently disabled!</red>"));
+            return true;
+        }
         if (!player.hasPermission("serversentials.gms")) {
             player.sendActionBar(plugin.mm(plugin.prefixMessage("messages.no-permission")));
             return true;

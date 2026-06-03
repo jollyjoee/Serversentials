@@ -35,11 +35,15 @@ public class TpaManager implements CommandExecutor, TabCompleter {
     // Key: player UUID, Value: true if they can receive TP requests
     private final Map<UUID, Boolean> tptoggleCache = new ConcurrentHashMap<>();
 
-    private final long expirationTicks;
+    private long expirationTicks;
 
     public TpaManager(Serversentials plugin, Scheduler scheduler) {
         this.plugin = plugin;
         this.scheduler = scheduler;
+        reload();
+    }
+
+    public void reload() {
         this.expirationTicks = plugin.getConfig().getLong("modules.tpa.expiration", 60) * 20L;
     }
 
@@ -69,6 +73,10 @@ public class TpaManager implements CommandExecutor, TabCompleter {
     // Sending Requests
     // -----------------------------
     private void handleTpa(Player sender, String[] args) {
+        if (!plugin.isModuleEnabled("tpa.enabled")) {
+            sender.sendActionBar(plugin.mm("<red>This module is currently disabled!</red>"));
+            return;
+        }
         if (!sender.hasPermission("serversentials.tpa")) {
             sender.sendActionBar(plugin.mm(plugin.prefixMessage("messages.no-permission")));
             return;
@@ -83,6 +91,10 @@ public class TpaManager implements CommandExecutor, TabCompleter {
     }
 
     private void handleTpahere(Player sender, String[] args) {
+        if (!plugin.isModuleEnabled("tpahere.enabled")) {
+            sender.sendActionBar(plugin.mm("<red>This module is currently disabled!</red>"));
+            return;
+        }
         if (!sender.hasPermission("serversentials.tpahere")) {
             sender.sendActionBar(plugin.mm(plugin.prefixMessage("messages.no-permission")));
             return;
@@ -231,6 +243,10 @@ public class TpaManager implements CommandExecutor, TabCompleter {
     // TP Toggle Command
     // -----------------------------
     private void handleToggle(Player player) {
+        if (!plugin.isModuleEnabled("tptoggle")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return;
+        }
         if (!player.hasPermission("serversentials.tptoggle")) {
             player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
             return;
@@ -243,9 +259,8 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         // Save asynchronously
         scheduler.runAsync(() -> {
             plugin.getDatabase().updateSafe(
-                    "INSERT INTO tptoggle_data (uuid, tptoggle) VALUES (?, ?) " +
-                            "ON CONFLICT(uuid) DO UPDATE SET tptoggle = ?",
-                    uuid.toString(), newState, newState
+                    "REPLACE INTO tptoggle_data (uuid, tptoggle) VALUES (?, ?)",
+                    uuid.toString(), newState
             );
         });
 

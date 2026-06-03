@@ -45,6 +45,7 @@ modules:
   teleport:
     top: true
     rtp: true #I recommend using my RTP plugin for more configuration!
+    back: true
     # https://modrinth.com/plugin/rtp-gui (if you DO install this, set rtp: false)
   #---------UTILITIES----------
   craft: true # serversentials.craft
@@ -76,6 +77,22 @@ modules:
     currency-symbol: "$"
     formatted: true # true = show commas and decimals, false = plain numbers
     decimals: 2 # number of decimal places
+  #---------CHAT FORMATTING---------
+  chat:
+    enabled: true
+    # Required global permission to format chat: "serversentials.chat"
+    require-global-permission: true
+    # Fallback format if no custom format matches
+    default-format: "<gray>{prefix}</gray><white>{player}</white><gray> » {message}</gray>"
+    # Permission group formats checked in priority order (first match wins)
+    # The permission node checked will be "serversentials.chat.format.<name>"
+    formats:
+      - name: "admin"
+        permission: "serversentials.chat.format.admin"
+        format: "<red>[Admin]</red> <gold>{prefix}{player}</gold><dark_gray> »</dark_gray> <yellow>{message}</yellow>"
+      - name: "vip"
+        permission: "serversentials.chat.format.vip"
+        format: "<aqua>[VIP]</aqua> <aqua>{prefix}{player}</aqua><gray> »</gray> <white>{message}</white>"
 
 messages:
   no-permission: "<red>You do not have permission to use this command!</red>"

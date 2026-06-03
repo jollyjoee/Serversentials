@@ -26,7 +26,10 @@ public class BalanceCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!plugin.getConfig().getBoolean("economy.enabled", true)) return true;
+        if (!plugin.isModuleEnabled("economy.enabled")) {
+            sender.sendMessage(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
 
         Player target = null;
 

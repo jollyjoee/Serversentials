@@ -27,6 +27,11 @@ public class BaltopCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!plugin.isModuleEnabled("economy.enabled")) {
+            sender.sendMessage(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         int page = 1;
         if (args.length >= 1) {
             try { page = Math.max(1, Integer.parseInt(args[0])); } catch (NumberFormatException ignored) {}

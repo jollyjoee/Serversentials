@@ -34,6 +34,11 @@ public class Item implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (!plugin.isModuleEnabled("item.enabled")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         if (!player.hasPermission("serversentials.item")) {
             player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
             return true;

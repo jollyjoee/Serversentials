@@ -1,5 +1,7 @@
 package com.jolly.serversentials;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -8,13 +10,13 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Universal DatabaseManager for Serversentials
- * Supports SQLite and MySQL
+ * Supports SQLite and MySQL via HikariCP connection pooling
  * Automatically closes resources and provides async helpers
  */
 public class DatabaseManager {
 
     private final JavaPlugin plugin;
-    private Connection connection;
+    private HikariDataSource dataSource;
 
     private final boolean useMySQL;
     private final String host, database, username, password;
@@ -33,6 +35,33 @@ public class DatabaseManager {
         this.username = username;
         this.password = password;
         this.sqliteFile = sqliteFile;
+        initializePool();
+    }
+
+    private void initializePool() {
+        HikariConfig config = new HikariConfig();
+        if (useMySQL) {
+            config.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&autoReconnect=true");
+            config.setUsername(username);
+            config.setPassword(password);
+            config.setMaximumPoolSize(plugin.getConfig().getInt("database.pool-size", 10));
+            config.addDataSourceProperty("cachePrepStmts", "true");
+            config.addDataSourceProperty("prepStmtCacheSize", "250");
+            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        } else {
+            if (!sqliteFile.exists()) {
+                try {
+                    plugin.getDataFolder().mkdirs();
+                    sqliteFile.createNewFile();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            config.setJdbcUrl("jdbc:sqlite:" + sqliteFile.getAbsolutePath());
+            config.setDriverClassName("org.sqlite.JDBC");
+            config.setMaximumPoolSize(1); // SQLite is single-threaded for writes; pool size of 1 avoids write lockouts
+        }
+        this.dataSource = new HikariDataSource(config);
     }
 
     public boolean isMySQL() {
@@ -43,37 +72,15 @@ public class DatabaseManager {
     // 🔹 Connection Handling
     // ================================
     public Connection getConnection() throws SQLException {
-        if (connection != null && !connection.isClosed()) {
-            return connection;
+        if (dataSource == null || dataSource.isClosed()) {
+            initializePool();
         }
-
-        if (useMySQL) {
-            String url = "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&autoReconnect=true";
-            connection = DriverManager.getConnection(url, username, password);
-        } else {
-            if (!sqliteFile.exists()) {
-                try {
-                    plugin.getDataFolder().mkdirs();
-                    sqliteFile.createNewFile();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
-            String url = "jdbc:sqlite:" + sqliteFile.getAbsolutePath();
-            connection = DriverManager.getConnection(url);
-        }
-
-        return connection;
+        return dataSource.getConnection();
     }
 
     public void close() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
         }
     }
 

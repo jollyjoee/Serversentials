@@ -32,6 +32,12 @@ public class Nick implements CommandExecutor, TabCompleter {
             sender.sendMessage("Only players can use this command!");
             return true;
         }
+
+        if (!plugin.isModuleEnabled("nick.enabled")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         if (!player.hasPermission("serversentials.nick")) {
             player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
             return true;
@@ -63,10 +69,8 @@ public class Nick implements CommandExecutor, TabCompleter {
 
             scheduler.runAsync(() -> {
                 plugin.getDatabase().updateSafe(
-                        "INSERT INTO nick_data (uuid, nickname) VALUES (?, ?) " +
-                                "ON CONFLICT(uuid) DO UPDATE SET nickname = ?",
+                        "REPLACE INTO nick_data (uuid, nickname) VALUES (?, ?)",
                         player.getUniqueId().toString(),
-                        newNick,
                         newNick
                 );
 
@@ -99,10 +103,8 @@ public class Nick implements CommandExecutor, TabCompleter {
             Component displayName = mm.deserialize(newNick);
             scheduler.runAsync(() -> {
                 plugin.getDatabase().updateSafe(
-                        "INSERT INTO nick_data (uuid, nickname) VALUES (?, ?) " +
-                                "ON CONFLICT(uuid) DO UPDATE SET nickname = ?",
+                        "REPLACE INTO nick_data (uuid, nickname) VALUES (?, ?)",
                         target.getUniqueId().toString(),
-                        newNick,
                         newNick
                 );
                 scheduler.run(target, () -> applyNickname(target, displayName));

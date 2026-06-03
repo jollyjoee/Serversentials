@@ -26,6 +26,11 @@ public class PayCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!plugin.isModuleEnabled("economy.enabled")) {
+            sender.sendMessage(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         if (!(sender instanceof Player p)) return true;
         if (args.length != 2) {
             p.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.pay-usage")));

@@ -31,6 +31,11 @@ public class Vanish implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (!plugin.isModuleEnabled("vanish")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         if (args.length == 1) {
             handleVanishOthers(player, args[0]);
         } else {

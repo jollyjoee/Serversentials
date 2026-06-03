@@ -12,6 +12,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
+import java.util.UUID;
+
 public class PlayerJoinListener implements Listener {
 
     private final Serversentials plugin;
@@ -48,6 +50,32 @@ public class PlayerJoinListener implements Listener {
             nickCommand.loadNicknameAsync(player);
             tptoggle.loadToggleState(player);
             vanish.loadVanishStatus(player);
-        }, 40L);
+            
+            if (player.hasPermission("serversentials.persistentgamemode")) {
+                loadPersistentGameMode(player);
+            }
+        }, 1L);
+    }
+
+    private void loadPersistentGameMode(Player player) {
+        UUID uuid = player.getUniqueId();
+        scheduler.runAsync(() -> {
+            String gmName = plugin.getDatabase().querySafe(
+                    "SELECT gamemode FROM gamemode_data WHERE uuid = ?",
+                    rs -> rs.next() ? rs.getString("gamemode") : null,
+                    uuid.toString()
+            );
+            if (gmName != null) {
+                scheduler.run(player, () -> {
+                    try {
+                        org.bukkit.GameMode gm = org.bukkit.GameMode.valueOf(gmName);
+                        player.setGameMode(gm);
+                        player.sendActionBar(mm.deserialize("<green>GameMode restored to <yellow>" + gm.name().toLowerCase()));
+                    } catch (IllegalArgumentException ex) {
+                        // Ignore invalid/unsupported gamemode names saved
+                    }
+                });
+            }
+        });
     }
 }

@@ -5,10 +5,12 @@ import com.jolly.serversentials.economy.*;
 import com.jolly.serversentials.commands.Containers;
 import com.jolly.serversentials.commands.teleports.*;
 import com.jolly.serversentials.commands.utilities.*;
+import com.jolly.serversentials.listeners.ChatListener;
 import com.jolly.serversentials.listeners.GodProtectionListener;
 import com.jolly.serversentials.listeners.InvseeListener;
 import com.jolly.serversentials.listeners.PlayerJoinListener;
 import com.jolly.serversentials.listeners.PlayerLeaveListener;
+import com.jolly.serversentials.listeners.TeleportListener;
 import com.jolly.serversentials.commands.ReloadCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -21,12 +23,22 @@ import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public final class Serversentials extends JavaPlugin {
     private static MiniMessage mm;
     private static FileConfiguration config;
     private static DatabaseManager db;
     private static Scheduler scheduler;
+    private static FormatUtility formatUtility;
+
+    // Overhauled references for dynamic reloading
+    private TpaManager tpaManager;
+    private WarpManager warpManager;
+    private EconomyManager economyManager;
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -60,9 +72,11 @@ public final class Serversentials extends JavaPlugin {
         // ================================
         // 📆 MANAGERS AND COMMANDS
         // ================================
+        Metrics metrics = new Metrics(this, 27850);
         scheduler = new Scheduler(this);
+        formatUtility = new FormatUtility(this);
         HomeManager home = new HomeManager(this, scheduler);
-        TpaManager tpa = new TpaManager(this, scheduler);
+        this.tpaManager = new TpaManager(this, scheduler);
         TpoManager tpo = new TpoManager(this, scheduler);
         Fly fly = new Fly(scheduler, this);
         Nick nick = new Nick(scheduler, this);
@@ -74,11 +88,12 @@ public final class Serversentials extends JavaPlugin {
         Hide hide = new Hide(scheduler, this);
         Monitor mon = new Monitor(scheduler, this);
         Generic gen = new Generic(this, scheduler);
-        WarpManager warp = new WarpManager(this, scheduler);
+        this.warpManager = new WarpManager(this, scheduler);
         Item item = new Item(this, scheduler);
         Enchant ench = new Enchant(this, scheduler);
         WorldCommands world = new WorldCommands(this, scheduler);
         Teleports tp = new Teleports(this, scheduler);
+
         // ================================
         // 💰 ECONOMY INITIALIZATION
         // ================================
@@ -86,193 +101,138 @@ public final class Serversentials extends JavaPlugin {
         VaultHook vaultHook = new VaultHook(this, scheduler);
 
         // Initialize EconomyManager
-        EconomyManager economy = new EconomyManager(db, scheduler, vaultHook, getConfig().getString("economy.currency-symbol", "$"), this);
+        this.economyManager = new EconomyManager(db, scheduler, vaultHook, getConfig().getString("economy.currency-symbol", "$"), this);
 
         // Immediately register with Vault synchronously
-        Bukkit.getServicesManager().register(net.milkbowl.vault.economy.Economy.class, economy, this, org.bukkit.plugin.ServicePriority.Highest);
+        Bukkit.getServicesManager().register(net.milkbowl.vault.economy.Economy.class, economyManager, this, org.bukkit.plugin.ServicePriority.Highest);
+        getLogger().info("✅ Serversentials economy registered with Vault");
 
-        getLogger().info("✅ Serversentials economy registered with Vault (if Vault is present)");
+        // ✅ Activate Vault Hook
+        vaultHook.hook();
+
         // ================================
         // 🧩 EVENT REGISTRATION
         // ================================
-        getServer().getPluginManager().registerEvents(new PlayerJoinListener(this, fly, nick, tpa, vanish, hide, gen, scheduler, economy), this);
+        getServer().getPluginManager().registerEvents(new PlayerJoinListener(this, fly, nick, tpaManager, vanish, hide, gen, scheduler, economyManager), this);
         getServer().getPluginManager().registerEvents(new InvseeListener(), this);
         getServer().getPluginManager().registerEvents(new PlayerLeaveListener(this, scheduler), this);
         getServer().getPluginManager().registerEvents(new GodProtectionListener(), this);
+        getServer().getPluginManager().registerEvents(new TeleportListener(this, scheduler), this);
+        
+        if (getConfig().getBoolean("modules.chat.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new ChatListener(this, vaultHook), this);
+        }
+
         // ================================
-        // ⚙️ COMMAND REGISTRATION (Config-based)
+        // ⚙️ COMMAND REGISTRATION (Unconditional)
         // ================================
         getCommand("ssreload").setExecutor(new ReloadCommand(this));
-        if (isModuleEnabled("fly")) {
-            getCommand("fly").setExecutor(fly);
-            getCommand("fly").setTabCompleter(fly);
-            getLogger().info("[Serversentials]✅ Fly module enabled.");
-        }
-        if (isModuleEnabled("gamemode")) {
-            getCommand("gms").setExecutor(gms);
-            getCommand("gms").setTabCompleter(gms);
-            getCommand("gmsp").setExecutor(gmsp);
-            getCommand("gmsp").setTabCompleter(gmsp);
-            getCommand("gmc").setExecutor(gmc);
-            getCommand("gmc").setTabCompleter(gmc);
-            getLogger().info("[Serversentials]✅ Gamemode module enabled.");
-        }
-        if (isModuleEnabled("nick.enabled")) {
-            getCommand("nick").setExecutor(nick);
-            getLogger().info("[Serversentials]✅ Nickname module enabled.");
-        }
-        if (isModuleEnabled("tpa.enabled")) {
-            getCommand("tpa").setExecutor(tpa);
-            getCommand("tpa").setTabCompleter(tpa);
-            getCommand("tpaccept").setExecutor(tpa);
-            getCommand("tpdeny").setExecutor(tpa);
-            getLogger().info("[Serversentials]✅ Tpa module enabled.");
-        }
-        if (isModuleEnabled("tpahere.enabled")) {
-            getCommand("tpahere").setExecutor(tpa);
-            getCommand("tpahere").setTabCompleter(tpa);
-            getLogger().info("[Serversentials]✅ Tpahere module enabled.");
-        }
-        if (isModuleEnabled("tptoggle")) {
-            getCommand("tptoggle").setExecutor(tpa);
-            getLogger().info("[Serversentials]✅ Tptoggle module enabled.");
-        }
-        if (isModuleEnabled("tpo")) {
-            getCommand("tpo").setExecutor(tpo);
-            getCommand("tpo").setTabCompleter(tpo);
-            getLogger().info("[Serversentials]✅ Tpo module enabled.");
-        }
-        if (isModuleEnabled("tpohere")) {
-            getCommand("tpohere").setExecutor(tpo);
-            getCommand("tpohere").setTabCompleter(tpo);
-            getLogger().info("[Serversentials]✅ Tpohere module enabled.");
-        }
-        if (isModuleEnabled("home")) {
-            getCommand("home").setExecutor(home);
-            getCommand("home").setTabCompleter(home);
-            getCommand("sethome").setExecutor(home);
-            getCommand("sethome").setTabCompleter(home);
-            getCommand("homes").setExecutor(home);
-            getCommand("delhome").setExecutor(home);
-            getCommand("delhome").setTabCompleter(home);
-            getLogger().info("[Serversentials]✅ Home module enabled.");
-        }
-        if (isModuleEnabled("craft")) {
-            getCommand("craft").setExecutor(cont);
-            getLogger().info("[Serversentials]✅ Craft module enabled.");
-        }
-        if (isModuleEnabled("anvil")) {
-            getCommand("anvil").setExecutor(cont);
-            getLogger().info("[Serversentials]✅ Anvil module enabled.");
-        }
-        if (isModuleEnabled("loom")) {
-            getCommand("loom").setExecutor(cont);
-            getLogger().info("[Serversentials]✅ loom module enabled.");
-        }
-        if (isModuleEnabled("echest")) {
-            getCommand("echest").setExecutor(cont);
-            getCommand("ec").setExecutor(cont);
-            getLogger().info("[Serversentials]✅ Echest module enabled.");
-        }
-        if (isModuleEnabled("invsee")) {
-            getCommand("invsee").setExecutor(cont);
-            getCommand("inv").setExecutor(cont);
-            getLogger().info("[Serversentials]✅ Invsee module enabled.");
-        }
-        if (isModuleEnabled("stonecutter")) {
-            getCommand("stonecutter").setExecutor(cont);
-            getCommand("scutter").setExecutor(cont);
-            getLogger().info("[Serversentials]✅ Stonecutter module enabled.");
-        }
-        if (isModuleEnabled("smithingtable")) {
-            getCommand("smithingtable").setExecutor(cont);
-            getCommand("smith").setExecutor(cont);
-            getLogger().info("[Serversentials]✅ Smithing Table module enabled.");
-        }
-        if (isModuleEnabled("vanish")) {
-            getCommand("vanish").setExecutor(vanish);
-            getCommand("vanish").setTabCompleter(vanish);
-            getLogger().info("[Serversentials]✅ Vanish module enabled.");
-        }
-        if (isModuleEnabled("monitor")) {
-            getCommand("monitor").setExecutor(mon);
-            getCommand("monitor").setTabCompleter(mon);
-            getLogger().info("[Serversentials]✅ Monitor module enabled.");
-        }
-        if (isModuleEnabled("heal")) {
-            getCommand("heal").setExecutor(gen);
-            getCommand("heal").setTabCompleter(gen);
-            getLogger().info("[Serversentials]✅ Heal module enabled.");
-        }
-        if (isModuleEnabled("feed")) {
-            getCommand("feed").setExecutor(gen);
-            getCommand("feed").setTabCompleter(gen);
-            getLogger().info("[Serversentials]✅ Feed module enabled.");
-        }
-        if (isModuleEnabled("god")) {
-            getCommand("god").setExecutor(gen);
-            getCommand("god").setTabCompleter(gen);
-            getLogger().info("[Serversentials]✅ God module enabled.");
-        }
-        if (isModuleEnabled("warp")) {
-            getCommand("warp").setExecutor(warp);
-            getCommand("warps").setExecutor(warp);
-            getCommand("setwarp").setExecutor(warp);
-            getCommand("delwarp").setExecutor(warp);
-            getCommand("warp").setTabCompleter(warp);
-            getCommand("warps").setTabCompleter(warp);
-            getCommand("setwarp").setTabCompleter(warp);
-            getCommand("delwarp").setTabCompleter(warp);
-            getLogger().info("[Serversentials]✅ Warp module enabled.");
-        }
-        if (isModuleEnabled("item.enabled")) {
-            getCommand("item").setExecutor(item);
-            getCommand("item").setTabCompleter(item);
-            getLogger().info("[Serversentials]✅ Item module enabled.");
-        }
-        if (isModuleEnabled("enchant.enabled")) {
-            getCommand("enchant").setExecutor(ench);
-            getCommand("enchant").setTabCompleter(ench);
-            getLogger().info("[Serversentials]✅ Enchant module enabled.");
-        }
-        if (isModuleEnabled("economy.enabled")) {
-            getCommand("balance").setExecutor(new BalanceCommand(this, economy));
-            getCommand("balance").setTabCompleter(new BalanceCommand(this, economy));
+        
+        getCommand("fly").setExecutor(fly);
+        getCommand("fly").setTabCompleter(fly);
+        
+        getCommand("gms").setExecutor(gms);
+        getCommand("gms").setTabCompleter(gms);
+        getCommand("gmsp").setExecutor(gmsp);
+        getCommand("gmsp").setTabCompleter(gmsp);
+        getCommand("gmc").setExecutor(gmc);
+        getCommand("gmc").setTabCompleter(gmc);
+        
+        getCommand("nick").setExecutor(nick);
+        
+        getCommand("back").setExecutor(new BackCommand(this, scheduler));
+        
+        getCommand("tpa").setExecutor(tpaManager);
+        getCommand("tpa").setTabCompleter(tpaManager);
+        getCommand("tpaccept").setExecutor(tpaManager);
+        getCommand("tpdeny").setExecutor(tpaManager);
+        getCommand("tpahere").setExecutor(tpaManager);
+        getCommand("tpahere").setTabCompleter(tpaManager);
+        getCommand("tptoggle").setExecutor(tpaManager);
+        
+        getCommand("tpo").setExecutor(tpo);
+        getCommand("tpo").setTabCompleter(tpo);
+        getCommand("tpohere").setExecutor(tpo);
+        getCommand("tpohere").setTabCompleter(tpo);
+        
+        getCommand("home").setExecutor(home);
+        getCommand("home").setTabCompleter(home);
+        getCommand("sethome").setExecutor(home);
+        getCommand("sethome").setTabCompleter(home);
+        getCommand("homes").setExecutor(home);
+        getCommand("delhome").setExecutor(home);
+        getCommand("delhome").setTabCompleter(home);
+        
+        getCommand("craft").setExecutor(cont);
+        getCommand("anvil").setExecutor(cont);
+        getCommand("loom").setExecutor(cont);
+        getCommand("echest").setExecutor(cont);
+        getCommand("ec").setExecutor(cont);
+        getCommand("invsee").setExecutor(cont);
+        getCommand("inv").setExecutor(cont);
+        getCommand("stonecutter").setExecutor(cont);
+        getCommand("scutter").setExecutor(cont);
+        getCommand("smithingtable").setExecutor(cont);
+        getCommand("smith").setExecutor(cont);
+        
+        getCommand("vanish").setExecutor(vanish);
+        getCommand("vanish").setTabCompleter(vanish);
+        
+        getCommand("monitor").setExecutor(mon);
+        getCommand("monitor").setTabCompleter(mon);
+        
+        getCommand("heal").setExecutor(gen);
+        getCommand("heal").setTabCompleter(gen);
+        getCommand("feed").setExecutor(gen);
+        getCommand("feed").setTabCompleter(gen);
+        getCommand("god").setExecutor(gen);
+        getCommand("god").setTabCompleter(gen);
+        
+        getCommand("warp").setExecutor(warpManager);
+        getCommand("warps").setExecutor(warpManager);
+        getCommand("setwarp").setExecutor(warpManager);
+        getCommand("delwarp").setExecutor(warpManager);
+        getCommand("warp").setTabCompleter(warpManager);
+        getCommand("warps").setTabCompleter(warpManager);
+        getCommand("setwarp").setTabCompleter(warpManager);
+        getCommand("delwarp").setTabCompleter(warpManager);
+        
+        getCommand("item").setExecutor(item);
+        getCommand("item").setTabCompleter(item);
+        
+        getCommand("itemrename").setExecutor(new ItemRenameCommand(this));
+        getCommand("itemrename").setTabCompleter(new ItemRenameCommand(this));
+        
+        getCommand("lore").setExecutor(new LoreCommand(this));
+        getCommand("lore").setTabCompleter(new LoreCommand(this));
+        
+        getCommand("enchant").setExecutor(ench);
+        getCommand("enchant").setTabCompleter(ench);
+        
+        getCommand("balance").setExecutor(new BalanceCommand(this, economyManager));
+        getCommand("balance").setTabCompleter(new BalanceCommand(this, economyManager));
+        getCommand("pay").setExecutor(new PayCommand(this, economyManager));
+        getCommand("pay").setTabCompleter(new PayCommand(this, economyManager));
+        getCommand("baltop").setExecutor(new BaltopCommand(this, economyManager));
+        getCommand("economy").setExecutor(new EconomyCommand(this, economyManager));
+        getCommand("economy").setTabCompleter(new EconomyCommand(this, economyManager));
+        
+        getCommand("day").setExecutor(world);
+        getCommand("night").setExecutor(world);
+        getCommand("noon").setExecutor(world);
+        getCommand("clear").setExecutor(world);
+        getCommand("rain").setExecutor(world);
+        getCommand("storm").setExecutor(world);
+        
+        getCommand("top").setExecutor(tp);
+        getCommand("rtp").setExecutor(tp);
 
-            getCommand("pay").setExecutor(new PayCommand(this, economy));
-            getCommand("pay").setTabCompleter(new PayCommand(this, economy));
-
-            getCommand("baltop").setExecutor(new BaltopCommand(this, economy));
-
-            getCommand("economy").setExecutor(new EconomyCommand(this, economy));
-            getCommand("economy").setTabCompleter(new EconomyCommand(this, economy));
-            getLogger().info("[Serversentials]✅ Economy module enabled.");
-        }
-        if (isModuleEnabled("worldcommands")) {
-            getCommand("day").setExecutor(world);
-            getCommand("night").setExecutor(world);
-            getCommand("noon").setExecutor(world);
-            getCommand("clear").setExecutor(world);
-            getCommand("rain").setExecutor(world);
-            getCommand("storm").setExecutor(world);
-            getLogger().info("[Serversentials]✅ Worldcommands module enabled.");
-        }
-        if (isModuleEnabled("teleport.top")) {
-            getCommand("top").setExecutor(tp);
-        }
-        if (isModuleEnabled("teleport.rtp")) {
-            getCommand("rtp").setExecutor(tp);
-        }
-        //if (isModuleEnabled("hide")) {
-        //    getCommand("hide").setExecutor(hide);
-        //}
-        // Always register /tpaccept and /tpdeny
         // ================================
         // 🪄 PLACEHOLDERAPI HOOK
         // ================================
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             scheduler.runLater(() -> {
-                new Placeholder(this, nick, fly, vanish, hide, economy).register();
+                new Placeholder(this, nick, fly, vanish, hide, economyManager).register();
                 getLogger().info("✅ Registered Serversentials placeholders with PlaceholderAPI!");
             }, 20L);
 
@@ -282,77 +242,151 @@ public final class Serversentials extends JavaPlugin {
                 public void onPluginEnable(PluginEnableEvent event) {
                     if (event.getPlugin().getName().equals("PlaceholderAPI")) {
                         scheduler.runLater(() -> {
-                            new Placeholder(Serversentials.this, nick, fly, vanish, hide, economy).register();
+                            new Placeholder(Serversentials.this, nick, fly, vanish, hide, economyManager).register();
                             getLogger().info("✅ Registered Serversentials placeholders with PlaceholderAPI (delayed)!");
                         }, 20L);
                     }
                 }
             }, this);
         }
+
         // ================================
-        // 🧱 TABLE CREATION
+        // 🧱 TABLE CREATION (MySQL Safe)
         // ================================
+        boolean isMySQL = getDatabase().isMySQL();
+
         getDatabase().updateSafe("""
         CREATE TABLE IF NOT EXISTS fly_data (
             uuid VARCHAR(36) PRIMARY KEY,
             flying BOOLEAN NOT NULL DEFAULT 0
         )
-    """);
+        """);
 
         getDatabase().updateSafe("""
         CREATE TABLE IF NOT EXISTS nick_data (
             uuid VARCHAR(36) PRIMARY KEY,
             nickname TEXT
         )
-    """);
+        """);
 
         getDatabase().updateSafe("""
         CREATE TABLE IF NOT EXISTS tptoggle_data (
             uuid VARCHAR(36) PRIMARY KEY,
             tptoggle BOOLEAN NOT NULL DEFAULT 0
         )
-    """);
+        """);
 
-        getDatabase().updateSafe("""
-        CREATE TABLE IF NOT EXISTS homes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid VARCHAR(36) NOT NULL,
-            name VARCHAR(32) NOT NULL,
-            world VARCHAR(64) NOT NULL,
-            x DOUBLE NOT NULL,
-            y DOUBLE NOT NULL,
-            z DOUBLE NOT NULL,
-            yaw FLOAT NOT NULL,
-            pitch FLOAT NOT NULL,
-            server VARCHAR(64) NOT NULL,
-            created_at TEXT DEFAULT (datetime('now')),
-            UNIQUE (uuid, name)
-        )
-    """);
+        if (isMySQL) {
+            getDatabase().updateSafe("""
+            CREATE TABLE IF NOT EXISTS homes (
+                id INT AUTO_INCREMENT,
+                uuid VARCHAR(36) NOT NULL,
+                name VARCHAR(32) NOT NULL,
+                world VARCHAR(64) NOT NULL,
+                x DOUBLE NOT NULL,
+                y DOUBLE NOT NULL,
+                z DOUBLE NOT NULL,
+                yaw FLOAT NOT NULL,
+                pitch FLOAT NOT NULL,
+                server VARCHAR(64) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE (uuid, name)
+            )
+            """);
+        } else {
+            getDatabase().updateSafe("""
+            CREATE TABLE IF NOT EXISTS homes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uuid VARCHAR(36) NOT NULL,
+                name VARCHAR(32) NOT NULL,
+                world VARCHAR(64) NOT NULL,
+                x DOUBLE NOT NULL,
+                y DOUBLE NOT NULL,
+                z DOUBLE NOT NULL,
+                yaw FLOAT NOT NULL,
+                pitch FLOAT NOT NULL,
+                server VARCHAR(64) NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                UNIQUE (uuid, name)
+            )
+            """);
+        }
 
-        getDatabase().updateSafe("""
-        CREATE TABLE IF NOT EXISTS leave_data (
-            uuid TEXT PRIMARY KEY,
-            world TEXT NOT NULL,
-            x DOUBLE NOT NULL,
-            y DOUBLE NOT NULL,
-            z DOUBLE NOT NULL,
-            left_at TEXT DEFAULT (datetime('now'))
-        )
-    """);
+        if (isMySQL) {
+            getDatabase().updateSafe("""
+            CREATE TABLE IF NOT EXISTS leave_data (
+                uuid VARCHAR(36) PRIMARY KEY,
+                world VARCHAR(64) NOT NULL,
+                x DOUBLE NOT NULL,
+                y DOUBLE NOT NULL,
+                z DOUBLE NOT NULL,
+                left_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """);
+        } else {
+            getDatabase().updateSafe("""
+            CREATE TABLE IF NOT EXISTS leave_data (
+                uuid TEXT PRIMARY KEY,
+                world TEXT NOT NULL,
+                x DOUBLE NOT NULL,
+                y DOUBLE NOT NULL,
+                z DOUBLE NOT NULL,
+                left_at TEXT DEFAULT (datetime('now'))
+            )
+            """);
+        }
 
         getDatabase().updateSafe("""
         CREATE TABLE IF NOT EXISTS vanish_data (
             uuid VARCHAR(36) PRIMARY KEY,
             status BOOLEAN NOT NULL
         )
-    """);
+        """);
+
+        getDatabase().updateSafe("""
+        CREATE TABLE IF NOT EXISTS back_data (
+            uuid VARCHAR(36) PRIMARY KEY,
+            world VARCHAR(64) NOT NULL,
+            x DOUBLE NOT NULL,
+            y DOUBLE NOT NULL,
+            z DOUBLE NOT NULL,
+            yaw FLOAT NOT NULL,
+            pitch FLOAT NOT NULL,
+            server VARCHAR(64) NOT NULL
+        )
+        """);
+
+        getDatabase().updateSafe("""
+        CREATE TABLE IF NOT EXISTS gamemode_data (
+            uuid VARCHAR(36) PRIMARY KEY,
+            gamemode VARCHAR(16) NOT NULL
+        )
+        """);
+
+        // Run migrations
+        if (!columnExists("back_data", "server")) {
+            getDatabase().updateSafe("ALTER TABLE back_data ADD COLUMN server VARCHAR(64) NOT NULL DEFAULT 'unknown'");
+        }
 
         getLogger().info("✅ Serversentials fully initialized!");
     }
 
+    private boolean columnExists(String tableName, String columnName) {
+        try (Connection conn = db.getConnection();
+             ResultSet rs = conn.getMetaData().getColumns(null, null, tableName, columnName)) {
+            return rs.next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
     public DatabaseManager getDatabase() {
         return db;
+    }
+
+    public FormatUtility getFormatUtility() {
+        return formatUtility;
     }
 
     @Override
@@ -364,6 +398,14 @@ public final class Serversentials extends JavaPlugin {
 
     public boolean isModuleEnabled(String module) {
         return getConfig().getBoolean("modules." + module, true);
+    }
+
+    public void reloadPlugin() {
+        reloadConfig();
+        config = getConfig();
+        if (tpaManager != null) tpaManager.reload();
+        if (warpManager != null) warpManager.reload();
+        if (economyManager != null) economyManager.reload();
     }
 
     public static Component mm(String string) {

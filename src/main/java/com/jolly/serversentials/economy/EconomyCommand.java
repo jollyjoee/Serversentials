@@ -26,6 +26,11 @@ public class EconomyCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!plugin.isModuleEnabled("economy.enabled")) {
+            sender.sendMessage(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         if (args.length != 3) {
             sender.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.economy-usage")));
             return true;

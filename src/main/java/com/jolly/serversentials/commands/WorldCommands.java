@@ -28,6 +28,11 @@ public class WorldCommands implements CommandExecutor {
             return true;
         }
 
+        if (!plugin.isModuleEnabled("worldcommands")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         if (!player.hasPermission("serversentials.worldcommands")) {
             player.sendActionBar(mm.deserialize(plugin.getConfig().getString("Messages.no-permission", "<red>You have no permission!")));
             return true;
@@ -38,7 +43,7 @@ public class WorldCommands implements CommandExecutor {
             case "day" -> handleDay(player);
             case "noon" -> handleNoon(player);
             case "night" -> handleNight(player);
-            case "clear" -> handleClear(player);
+            case "sun" -> handleClear(player);
             case "rain" -> handleRain(player);
             case "storm" -> handleStorm(player);
             default -> player.sendActionBar(mm.deserialize("<red>Unknown command."));
@@ -48,34 +53,40 @@ public class WorldCommands implements CommandExecutor {
 
     private void handleDay(Player player) {
         World world = player.getWorld();
-        world.setTime(1000);
+        scheduler.runGlobal(() -> world.setTime(1000));
     }
 
     private void handleNoon(Player player) {
         World world = player.getWorld();
-        world.setTime(6000);
+        scheduler.runGlobal(() -> world.setTime(6000));
     }
 
     private void handleNight(Player player) {
         World world = player.getWorld();
-        world.setTime(13000);
+        scheduler.runGlobal(() -> world.setTime(13000));
     }
 
     private void handleClear(Player player) {
         World world = player.getWorld();
-        world.setStorm(false);
-        world.setThundering(false);
+        scheduler.runGlobal(() -> {
+            world.setStorm(false);
+            world.setThundering(false);
+        });
     }
 
     private void handleRain(Player player) {
         World world = player.getWorld();
-        world.setStorm(true);
-        world.setThundering(false);
+        scheduler.runGlobal(() -> {
+            world.setStorm(true);
+            world.setThundering(false);
+        });
     }
 
     private void handleStorm(Player player) {
         World world = player.getWorld();
-        world.setStorm(true);
-        world.setThundering(true);
+        scheduler.runGlobal(() -> {
+            world.setStorm(true);
+            world.setThundering(true);
+        });
     }
 }

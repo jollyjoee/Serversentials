@@ -47,6 +47,10 @@ public class TpoManager implements CommandExecutor, TabCompleter {
     // Sending Requests
     // -----------------------------
     private void handleTpo(Player sender, String[] args) {
+        if (!plugin.isModuleEnabled("tpo")) {
+            sender.sendActionBar(plugin.mm("<red>This module is currently disabled!</red>"));
+            return;
+        }
         if (!sender.hasPermission("serversentials.tpo")) {
             sender.sendActionBar(plugin.mm(plugin.prefixMessage("messages.no-permission")));
             return;
@@ -61,6 +65,10 @@ public class TpoManager implements CommandExecutor, TabCompleter {
     }
 
     private void handleTpohere(Player sender, String[] args) {
+        if (!plugin.isModuleEnabled("tpohere")) {
+            sender.sendActionBar(plugin.mm("<red>This module is currently disabled!</red>"));
+            return;
+        }
         if (!sender.hasPermission("serversentials.tpohere")) {
             sender.sendActionBar(plugin.mm(plugin.prefixMessage("messages.no-permission")));
             return;

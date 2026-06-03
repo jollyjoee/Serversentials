@@ -47,17 +47,21 @@ public class WarpManager implements CommandExecutor, TabCompleter {
     private static record Warp(String name, String world, double x, double y, double z, float yaw, float pitch, String server) {}
 
     // defaults
-    private final long defaultCountdown; // ticks = seconds * 20 when scheduled, but store in seconds here
-    private final long defaultCooldown; // seconds
+    private long defaultCountdown; // ticks = seconds * 20 when scheduled, but store in seconds here
+    private long defaultCooldown; // seconds
 
     public WarpManager(Serversentials plugin, Scheduler scheduler) {
         this.plugin = plugin;
         this.scheduler = scheduler;
-        this.defaultCountdown = plugin.getConfig().getLong("modules.warp.default-countdown", 5L);
-        this.defaultCooldown = plugin.getConfig().getLong("modules.warp.default-cooldown", 0L);
+        reload();
 
         createTables();
         loadAllWarpsAsync();
+    }
+
+    public void reload() {
+        this.defaultCountdown = plugin.getConfig().getLong("modules.warp.default-countdown", 5L);
+        this.defaultCooldown = plugin.getConfig().getLong("modules.warp.default-cooldown", 0L);
     }
 
     // -----------------------
@@ -67,6 +71,11 @@ public class WarpManager implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(mm.deserialize("<red>Only players can use this command!"));
+            return true;
+        }
+
+        if (!plugin.isModuleEnabled("warp")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
             return true;
         }
 
@@ -228,6 +237,12 @@ public class WarpManager implements CommandExecutor, TabCompleter {
     // Warp process: cooldown, countdown, movement-cancel, teleport & persist last-used
     // -----------------------
     private void beginWarpProcess(Player player, String warpName, Warp warp) {
+        String currentServer = plugin.getConfig().getString("server-name", "unknown");
+        if (!currentServer.equalsIgnoreCase(warp.server)) {
+            player.sendActionBar(mm.deserialize("<red>This warp is set on another server: <yellow>" + warp.server));
+            return;
+        }
+
         UUID uuid = player.getUniqueId();
 
         // 1) get cooldown in seconds (permission-based)

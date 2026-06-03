@@ -134,11 +134,10 @@ public class Hide implements CommandExecutor, TabCompleter {
 
                 // Save old scoreboard team
                 String oldTeam = getPlayerCurrentTeam(target);
-                plugin.getDatabase().updateSafe("""
-                    INSERT INTO hide_data (uuid, hidden, previous_name, previous_team)
-                    VALUES (?, ?, ?, ?)
-                    ON CONFLICT(uuid) DO UPDATE SET hidden = excluded.hidden, previous_name = excluded.previous_name, previous_team = excluded.previous_team
-                """, uuid.toString(), true, serializedCurrent, oldTeam);
+                plugin.getDatabase().updateSafe(
+                    "REPLACE INTO hide_data (uuid, hidden, previous_name, previous_team) VALUES (?, ?, ?, ?)",
+                    uuid.toString(), true, serializedCurrent, oldTeam
+                );
 
                 hiddenPlayers.add(uuid);
                 executor.sendActionBar(mm.deserialize("<green>" + target.getName() + " is now hidden!"));

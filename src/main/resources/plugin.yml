@@ -1,12 +1,11 @@
 name: Serversentials
-version: '1.2'
+version: '1.5'
 main: com.jolly.serversentials.Serversentials
 api-version: '1.21'
 authors: [ Jolly ]
 load: STARTUP
 folia-supported: true
-softdepend: [PlaceholderAPI]
-depend: [Vault]
+softdepend: [PlaceholderAPI, Vault]
 commands:
   ssreload:
     description: Reload Serversentials configs
@@ -107,6 +106,13 @@ commands:
   item:
     aliases: [i]
     default: false
+  itemrename:
+    description: Rename the display name of your held item
+    aliases: [iname, itemname]
+    default: false
+  lore:
+    description: Edit the lore of your held item
+    default: false
   enchant:
     aliases: [ench]
     default: false
@@ -151,6 +157,9 @@ commands:
     default: false
   rtp:
     description: Randomly teleport in your world inside the worldborder
+    default: false
+  back:
+    description: Teleport to your previous location or death point
     default: false
 
 
@@ -311,4 +320,31 @@ permissions:
     default: op
   serversentials.teleport.rtp:
     description: Allows /rtp
+    default: op
+  serversentials.back:
+    description: Allows use of /back
+    default: op
+  serversentials.chat:
+    description: Allows a player's chat to be custom formatted by Serversentials
+    default: true
+  serversentials.chat.color.all:
+    description: Allows a player to use all MiniMessage colors in chat
+    default: false
+  serversentials.chat.style.all:
+    description: Allows a player to use all MiniMessage styles/decorations in chat
+    default: false
+  serversentials.chat.format.admin:
+    description: Allows a player to use the Admin chat format
+    default: op
+  serversentials.chat.format.vip:
+    description: Allows a player to use the VIP chat format
+    default: false
+  serversentials.persistentgamemode:
+    description: Allows a player's gamemode to persist across server changes
+    default: false
+  serversentials.itemrename:
+    description: Allows a player to rename their held item
+    default: op
+  serversentials.lore:
+    description: Allows a player to edit their held item's lore
     default: op

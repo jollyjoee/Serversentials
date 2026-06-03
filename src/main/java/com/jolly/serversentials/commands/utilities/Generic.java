@@ -33,7 +33,7 @@ public class Generic implements CommandExecutor, TabCompleter {
     private void createTable() {
         plugin.getDatabase().updateSafe("""
                 CREATE TABLE IF NOT EXISTS god_mode (
-                    uuid TEXT PRIMARY KEY,
+                    uuid VARCHAR(36) PRIMARY KEY,
                     status BOOLEAN
                 )
         """);
@@ -46,7 +46,13 @@ public class Generic implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        switch (command.getName().toLowerCase(Locale.ROOT)) {
+        String cmd = command.getName().toLowerCase(Locale.ROOT);
+        if (!plugin.isModuleEnabled(cmd)) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
+        switch (cmd) {
             case "heal" -> handleHeal(player, args);
             case "feed" -> handleFeed(player, args);
             case "god" -> handleGod(player, args);
@@ -71,11 +77,13 @@ public class Generic implements CommandExecutor, TabCompleter {
                 return;
             }
             target.setHealth(target.getMaxHealth());
+            target.setSaturation(40);
             player.sendActionBar(mm.deserialize("<green>You healed <white>" + target.getName() + "</white>."));
             target.sendActionBar(mm.deserialize("<green>You have been healed!"));
             return;
         }
         player.setHealth(player.getMaxHealth());
+        player.setSaturation(40);
         player.sendActionBar(mm.deserialize("<green>You have been healed!"));
     }
 

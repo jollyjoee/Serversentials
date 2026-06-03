@@ -28,7 +28,7 @@ public class ReloadCommand implements CommandExecutor {
             return true;
         }
 
-        plugin.reloadConfig();
+        plugin.reloadPlugin();
         plugin.getLogger().info("✅ Serversentials reloaded.");
         if (sender instanceof Player p) {
             p.sendActionBar(mm.deserialize("<green>Serversentials reloaded!</green>"));

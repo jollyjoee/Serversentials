@@ -34,6 +34,15 @@ public class Teleports implements CommandExecutor {
         }
 
         String cmd = command.getName().toLowerCase(Locale.ROOT);
+        if (cmd.equals("top") && !plugin.isModuleEnabled("teleport.top")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+        if (cmd.equals("rtp") && !plugin.isModuleEnabled("teleport.rtp")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         switch (cmd) {
             case "top" -> handleTop(player);
             case "rtp" -> handleRtp(player);

@@ -32,6 +32,11 @@ public class Fly implements CommandExecutor, TabCompleter {
 
         if (!command.getName().equalsIgnoreCase("fly")) return false;
 
+        if (!plugin.isModuleEnabled("fly")) {
+            player.sendActionBar(plugin.mm("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         // Check permission
         if (!player.hasPermission("serversentials.fly")) {
             player.sendActionBar(plugin.mm(plugin.prefixMessage("messages.no-permission")));
@@ -91,11 +96,10 @@ public class Fly implements CommandExecutor, TabCompleter {
      * Saves a player's flying state asynchronously to the database.
      */
     private void saveFlyStateAsync(UUID uuid, boolean flying) {
-        plugin.getDatabase().updateSafeAsync("""
-            INSERT INTO fly_data (uuid, flying)
-            VALUES (?, ?)
-            ON CONFLICT(uuid) DO UPDATE SET flying = excluded.flying
-        """, uuid.toString(), flying);
+        plugin.getDatabase().updateSafeAsync(
+            "REPLACE INTO fly_data (uuid, flying) VALUES (?, ?)",
+            uuid.toString(), flying
+        );
     }
 
     /**

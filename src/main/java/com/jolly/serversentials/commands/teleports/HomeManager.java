@@ -5,6 +5,7 @@ import com.jolly.serversentials.Serversentials;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.*;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.PermissionAttachmentInfo;
@@ -139,6 +140,33 @@ public class HomeManager implements CommandExecutor, TabCompleter {
             player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
             return;
         }
+
+        // Support admin override: /home <player> <home>
+        if (args.length >= 2 && player.hasPermission("serversentials.home.others")) {
+            OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(args[0]);
+            String homeName = args[1].toLowerCase(Locale.ROOT);
+            scheduler.runAsync(() -> {
+                Map<String, HomeLocation> homes = getHomes(targetPlayer.getUniqueId());
+                HomeLocation home = homes.get(homeName);
+                if (home == null) {
+                    scheduler.run(player, () -> player.sendActionBar(mm.deserialize("<red>Home <yellow>" + homeName + "</yellow> not found for player <yellow>" + targetPlayer.getName() + "</yellow>.")));
+                    return;
+                }
+                String currentServer = plugin.getConfig().getString("server-name", "unknown");
+                if (!currentServer.equalsIgnoreCase(home.server)) {
+                    scheduler.run(player, () -> player.sendActionBar(mm.deserialize("<red>This home is set on another server: <yellow>" + home.server)));
+                    return;
+                }
+                scheduler.run(player, () -> {
+                    Location loc = new Location(Bukkit.getWorld(home.world), home.x, home.y, home.z, home.yaw, home.pitch);
+                    player.teleportAsync(loc).thenRun(() -> {
+                        player.sendActionBar(mm.deserialize("<green>Teleported to <yellow>" + targetPlayer.getName() + "</yellow>'s home <yellow>" + homeName + "</yellow>!"));
+                    });
+                });
+            });
+            return;
+        }
+
         if (args.length == 0) {
             player.sendActionBar(mm.deserialize("<red>Usage: /home <name>"));
             return;
@@ -158,7 +186,7 @@ public class HomeManager implements CommandExecutor, TabCompleter {
 
         String homeName = args[0].toLowerCase(Locale.ROOT);
         scheduler.runAsync(() -> {
-            Map<String, HomeLocation> homes = getHomes(player);
+            Map<String, HomeLocation> homes = getHomes(player.getUniqueId());
             HomeLocation home = homes.get(homeName);
 
             if (home == null) {
@@ -369,7 +397,11 @@ public class HomeManager implements CommandExecutor, TabCompleter {
     // DB Helpers
     // ======================================
     private Map<String, HomeLocation> getHomes(Player player) {
-        return homeCache.computeIfAbsent(player.getUniqueId(), uuid -> {
+        return getHomes(player.getUniqueId());
+    }
+
+    private Map<String, HomeLocation> getHomes(UUID uuid) {
+        return homeCache.computeIfAbsent(uuid, id -> {
             Map<String, HomeLocation> map = new HashMap<>();
             plugin.getDatabase().querySafe(
                     "SELECT name, world, x, y, z, yaw, pitch, server FROM homes WHERE uuid=?",
@@ -390,7 +422,7 @@ public class HomeManager implements CommandExecutor, TabCompleter {
                         }
                         return null;
                     },
-                    player.getUniqueId().toString()
+                    id.toString()
             );
             return map;
         });

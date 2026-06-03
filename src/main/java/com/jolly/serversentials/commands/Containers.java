@@ -35,6 +35,17 @@ public class Containers implements CommandExecutor, TabCompleter {
         }
 
         String cmd = command.getName().toLowerCase(Locale.ROOT);
+        String moduleToCheck = cmd;
+        if (cmd.equals("ec")) moduleToCheck = "echest";
+        if (cmd.equals("inv")) moduleToCheck = "invsee";
+        if (cmd.equals("scutter")) moduleToCheck = "stonecutter";
+        if (cmd.equals("smith")) moduleToCheck = "smithingtable";
+
+        if (!plugin.isModuleEnabled(moduleToCheck)) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         switch (cmd) {
             case "craft" -> handleCraft(player);
             case "anvil" -> handleAnvil(player);

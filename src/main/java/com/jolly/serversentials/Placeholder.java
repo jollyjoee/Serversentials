@@ -68,7 +68,12 @@ public class Placeholder extends PlaceholderExpansion {
         if (identifier.equalsIgnoreCase("ping")) return String.valueOf(player.getPing());
         if (identifier.equalsIgnoreCase("vanished")) return vanish.isVanished(player) ? "true" : "false";
         if (identifier.equalsIgnoreCase("hidden")) return hide.isHidden(player) ? "true" : "false";
-        if (identifier.equalsIgnoreCase("eco_balance")) return eco.getBalanceAsync(player.getUniqueId()).toString();
+        if (identifier.equalsIgnoreCase("eco_balance")) {
+            return String.valueOf(eco.getBalance(player));
+        }
+        if (identifier.equalsIgnoreCase("eco_balance_formatted")) {
+            return eco.format(eco.getBalance(player));
+        }
         return null;
     }
 }

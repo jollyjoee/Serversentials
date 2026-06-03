@@ -41,6 +41,10 @@ public class EconomyManager implements Economy {
         """));
     }
 
+    public void reload() {
+        this.currencySymbol = plugin.getConfig().getString("economy.currency-symbol", "$");
+    }
+
     // ======================================================
     // Async Balance Methods
     // ======================================================
@@ -64,10 +68,10 @@ public class EconomyManager implements Economy {
                 vaultHook.getEconomy().depositPlayer(player, -current + amount);
             });
         } else {
-            return db.updateSafeAsync("""
-                    INSERT INTO economy (uuid, balance) VALUES (?, ?)
-                    ON CONFLICT(uuid) DO UPDATE SET balance = excluded.balance
-                    """, uuid.toString(), amount).thenApply(i -> null);
+            return db.updateSafeAsync(
+                    "REPLACE INTO economy (uuid, balance) VALUES (?, ?)",
+                    uuid.toString(), amount
+            ).thenApply(i -> null);
         }
     }
 

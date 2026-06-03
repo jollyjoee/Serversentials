@@ -37,6 +37,11 @@ public class Monitor implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (!plugin.isModuleEnabled("monitor")) {
+            player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
+            return true;
+        }
+
         if (!player.hasPermission("serversentials.monitor")) {
             player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
             return true;
