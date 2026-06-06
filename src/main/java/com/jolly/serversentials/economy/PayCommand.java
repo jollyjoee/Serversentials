@@ -39,6 +39,37 @@ public class PayCommand implements CommandExecutor, TabCompleter {
 
         Player target = Bukkit.getPlayer(args[0]);
         if (target == null || !target.isOnline()) {
+            String targetName = args[0];
+            if (plugin.getConfig().getBoolean("economy.cross-server-pay", true) && plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
+                if (targetName.equalsIgnoreCase(p.getName())) {
+                    p.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.invalid-recipient")));
+                    return true;
+                }
+
+                double amount;
+                try {
+                    amount = Double.parseDouble(args[1]);
+                    if (amount <= 0) throw new NumberFormatException();
+                } catch (NumberFormatException ex) {
+                    p.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.invalid-number")));
+                    return true;
+                }
+
+                UUID senderUUID = p.getUniqueId();
+                economy.getBalanceAsync(senderUUID).thenAccept(balance -> {
+                    if (balance < amount) {
+                        p.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.pay-insufficient")));
+                        return;
+                    }
+
+                    economy.deductBalanceAsync(senderUUID, amount).thenRun(() -> {
+                        plugin.getNetworkManager().forwardToPlayer(p, targetName, "PAY_CHECK_REQ", p.getName(), targetName, amount);
+                        p.sendMessage(mm.deserialize("<green>Processing cross-server payment of <white>" + amount + " <green>to <white>" + targetName + "..."));
+                    });
+                });
+                return true;
+            }
+
             p.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.player-not-found")));
             return true;
         }
@@ -90,6 +121,12 @@ public class PayCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length != 1) return Collections.emptyList();
+        if (plugin.getConfig().getBoolean("economy.cross-server-pay", true)) {
+            return plugin.getNetworkManager().getNetworkPlayerSuggestions(args[0]).stream()
+                    .filter(name -> !name.equalsIgnoreCase(sender.getName()))
+                    .sorted()
+                    .toList();
+        }
         return plugin.getServer().getOnlinePlayers().stream()
                 .map(Player::getName)
                 .filter(name -> name.toLowerCase().startsWith(args[0].toLowerCase()))

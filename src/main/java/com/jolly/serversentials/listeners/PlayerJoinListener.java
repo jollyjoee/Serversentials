@@ -43,6 +43,11 @@ public class PlayerJoinListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player player = e.getPlayer();
+        plugin.getNetworkManager().onPlayerJoinServer(player);
+        org.bukkit.Location pendingLoc = com.jolly.serversentials.NetworkPacketHandler.pendingTeleports.remove(player.getUniqueId());
+        if (pendingLoc != null) {
+            scheduler.runLater(() -> player.teleportAsync(pendingLoc), 5L);
+        }
         economy.setStartingBalance(player);
         flyCommand.loadFlyStateAsync(player);
         scheduler.runLater(() -> {

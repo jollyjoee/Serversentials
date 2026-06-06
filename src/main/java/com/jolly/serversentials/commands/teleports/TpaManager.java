@@ -4,8 +4,10 @@ import com.jolly.serversentials.Scheduler;
 import com.jolly.serversentials.Serversentials;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.command.*;
 import org.bukkit.entity.Player;
+import com.jolly.serversentials.NetworkPacketHandler;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -86,6 +88,20 @@ public class TpaManager implements CommandExecutor, TabCompleter {
             return;
         }
         Player receiver = Bukkit.getPlayer(args[0]);
+        if (receiver == null || !receiver.isOnline()) {
+            String targetName = args[0];
+            if (plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
+                if (targetName.equalsIgnoreCase(sender.getName())) {
+                    sender.sendActionBar(mm.deserialize("<red>You cannot send a teleport request to yourself!"));
+                    return;
+                }
+                plugin.getNetworkManager().forwardToPlayer(sender, targetName, "TPA_REQUEST", sender.getName(), targetName, false);
+                sender.sendActionBar(mm.deserialize("<green>Teleport request sent to <yellow>" + targetName));
+                return;
+            }
+            sender.sendActionBar(mm.deserialize("<red>That player is not online!"));
+            return;
+        }
         if (!isValidTarget(sender, receiver)) return;
         sendRequest(sender, receiver, RequestType.TPA);
     }
@@ -104,6 +120,20 @@ public class TpaManager implements CommandExecutor, TabCompleter {
             return;
         }
         Player receiver = Bukkit.getPlayer(args[0]);
+        if (receiver == null || !receiver.isOnline()) {
+            String targetName = args[0];
+            if (plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
+                if (targetName.equalsIgnoreCase(sender.getName())) {
+                    sender.sendActionBar(mm.deserialize("<red>You cannot send a teleport request to yourself!"));
+                    return;
+                }
+                plugin.getNetworkManager().forwardToPlayer(sender, targetName, "TPA_REQUEST", sender.getName(), targetName, true);
+                sender.sendActionBar(mm.deserialize("<green>Teleport request sent to <yellow>" + targetName));
+                return;
+            }
+            sender.sendActionBar(mm.deserialize("<red>That player is not online!"));
+            return;
+        }
         if (!isValidTarget(sender, receiver)) return;
         sendRequest(sender, receiver, RequestType.TPAHERE);
     }
@@ -121,7 +151,6 @@ public class TpaManager implements CommandExecutor, TabCompleter {
     }
 
     private void sendRequest(Player sender, Player receiver, RequestType type) {
-        // Respect tptoggle
         if (!tptoggleCache.getOrDefault(receiver.getUniqueId(), true)) {
             sender.sendActionBar(mm.deserialize("<red>" + receiver.getName() + " is not accepting teleport requests."));
             return;
@@ -134,7 +163,6 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         receiver.sendActionBar(mm.deserialize("<yellow>" + sender.getName() + " <green>wants " + typeMessage));
         receiver.sendActionBar(mm.deserialize("<gray>Type <aqua>/tpaccept | /tpc</aqua><gray> to accept or <red>/tpdeny | /tpd</red><gray> to deny."));
 
-        // Schedule expiration
         Object expireTask = scheduler.runLater(receiver, () -> {
             if (pendingRequests.remove(receiver.getUniqueId()) != null) {
                 sender.sendActionBar(mm.deserialize("<red>Your teleport request to <yellow>" + receiver.getName() + "</yellow> has expired."));
@@ -146,12 +174,25 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         expirationTasks.put(receiver.getUniqueId(), expireTask);
     }
 
-    // -----------------------------
-    // Accept / Deny Requests
-    // -----------------------------
     private void handleAccept(Player receiver) {
         TPRequest request = pendingRequests.remove(receiver.getUniqueId());
         if (request == null) {
+            String senderName = NetworkPacketHandler.pendingTpaRequests.remove(receiver.getName().toLowerCase());
+            if (senderName != null) {
+                String localServer = plugin.getConfig().getString("server-name", "unknown");
+                Location loc = receiver.getLocation();
+                plugin.getNetworkManager().forwardToPlayer(receiver, senderName, "TPA_RESPONSE", senderName, receiver.getName(), true, false, localServer, loc.getWorld().getName(), loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch());
+                receiver.sendMessage(mm.deserialize("<green>You accepted the /tpa request from <yellow>" + senderName + "</yellow> (cross-server)."));
+                return;
+            }
+
+            senderName = NetworkPacketHandler.pendingTpaHereRequests.remove(receiver.getName().toLowerCase());
+            if (senderName != null) {
+                plugin.getNetworkManager().forwardToPlayer(receiver, senderName, "TPAHERE_ACCEPT", senderName, receiver.getName());
+                receiver.sendMessage(mm.deserialize("<green>You accepted the /tpahere request from <yellow>" + senderName + "</yellow> (cross-server)."));
+                return;
+            }
+
             receiver.sendActionBar(mm.deserialize("<red>You have no pending teleport requests."));
             return;
         }
@@ -163,17 +204,14 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         }
 
         scheduler.cancelTask(expirationTasks.remove(receiver.getUniqueId()));
-        //plugin.getLogger().info("Teleport request accepted");
-        Player monitored; // the player whose movement cancels the teleport
+        Player monitored;
         long countdownSeconds;
         if (request.type == RequestType.TPA) {
-            //plugin.getLogger().info("Teleport request is TPA");
             sender.sendActionBar(mm.deserialize("<green>Your /tpa request to <yellow>" + receiver.getName() + "</yellow> was accepted!"));
             receiver.sendActionBar(mm.deserialize("<green>You accepted the /tpa request from <yellow>" + sender.getName() + "</yellow>."));
             monitored = sender;
             countdownSeconds = plugin.getConfig().getLong("modules.tpa.countdown", 5);
         } else {
-            //plugin.getLogger().info("Teleport request is TPAHERE");
             sender.sendActionBar(mm.deserialize("<green>Your /tpahere request to <yellow>" + receiver.getName() + "</yellow> was accepted!"));
             receiver.sendActionBar(mm.deserialize("<green>You accepted the /tpahere request from <yellow>" + sender.getName() + "</yellow>."));
             monitored = receiver;
@@ -183,7 +221,6 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         final var startLoc = monitored.getLocation().clone();
         final List<Object> countdownTasks = new ArrayList<>();
 
-        // Countdown loop
         for (long i = 0; i < countdownSeconds; i++) {
             long delay = i * 20L;
             long remaining = countdownSeconds - i;
@@ -191,13 +228,11 @@ public class TpaManager implements CommandExecutor, TabCompleter {
             Object task = scheduler.runLater(monitored, () -> {
                 if (!monitored.isOnline()) return;
 
-                // Cancel if moved
                 if (!monitored.getLocation().getBlock().equals(startLoc.getBlock())) {
                     monitored.sendActionBar(mm.deserialize("<red>Teleport canceled due to movement!"));
                     if (request.type == RequestType.TPA) sender.sendActionBar(mm.deserialize("<red>Teleport canceled because you moved."));
                     else receiver.sendActionBar(mm.deserialize("<red>Teleport canceled because you moved."));
 
-                    // Cancel remaining countdown tasks
                     countdownTasks.forEach(scheduler::cancelTask);
                     countdownTasks.clear();
                     return;
@@ -209,7 +244,6 @@ public class TpaManager implements CommandExecutor, TabCompleter {
             countdownTasks.add(task);
         }
 
-        // Schedule actual teleport
         Object teleportTask = scheduler.runLater(monitored, () -> {
             if (!monitored.isOnline()) return;
             if (!monitored.getLocation().getBlock().equals(startLoc.getBlock())) {
@@ -225,6 +259,15 @@ public class TpaManager implements CommandExecutor, TabCompleter {
     private void handleDeny(Player receiver) {
         TPRequest request = pendingRequests.remove(receiver.getUniqueId());
         if (request == null) {
+            String senderName = NetworkPacketHandler.pendingTpaRequests.remove(receiver.getName().toLowerCase());
+            if (senderName == null) {
+                senderName = NetworkPacketHandler.pendingTpaHereRequests.remove(receiver.getName().toLowerCase());
+            }
+            if (senderName != null) {
+                plugin.getNetworkManager().forwardToPlayer(receiver, senderName, "TPA_RESPONSE", senderName, receiver.getName(), false, false);
+                receiver.sendMessage(mm.deserialize("<gray>You denied the teleport request."));
+                return;
+            }
             receiver.sendActionBar(mm.deserialize("<red>You have no pending teleport requests."));
             return;
         }
@@ -235,13 +278,47 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         }
 
         scheduler.cancelTask(expirationTasks.remove(receiver.getUniqueId()));
-
         receiver.sendActionBar(mm.deserialize("<gray>You denied the teleport request."));
     }
 
-    // -----------------------------
-    // TP Toggle Command
-    // -----------------------------
+    public void startCrossServerCountdown(Player player, String serverName, String worldName, double x, double y, double z, float yaw, float pitch) {
+        long countdownSeconds = plugin.getConfig().getLong("modules.tpa.countdown", 5);
+        final var startLoc = player.getLocation().clone();
+        final List<Object> countdownTasks = new ArrayList<>();
+
+        for (long i = 0; i < countdownSeconds; i++) {
+            long delay = i * 20L;
+            long remaining = countdownSeconds - i;
+
+            Object task = scheduler.runLater(player, () -> {
+                if (!player.isOnline()) return;
+
+                if (!player.getLocation().getBlock().equals(startLoc.getBlock())) {
+                    player.sendActionBar(mm.deserialize("<red>Teleport canceled due to movement!"));
+                    countdownTasks.forEach(scheduler::cancelTask);
+                    countdownTasks.clear();
+                    return;
+                }
+
+                player.sendActionBar(mm.deserialize("<aqua>Teleporting in <yellow>" + remaining + "s<aqua>..."));
+            }, delay);
+
+            countdownTasks.add(task);
+        }
+
+        Object teleportTask = scheduler.runLater(player, () -> {
+            if (!player.isOnline()) return;
+            if (!player.getLocation().getBlock().equals(startLoc.getBlock())) {
+                return; // canceled by movement
+            }
+
+            plugin.getNetworkManager().sendPluginMessage(player, "FORWARD_TO_SERVER", serverName, "TELEPORT_JOIN_REG", player.getUniqueId().toString(), worldName, x, y, z, yaw, pitch);
+            plugin.getNetworkManager().requestPlayerTransfer(player, player.getName(), serverName);
+        }, countdownSeconds * 20L);
+
+        countdownTasks.add(teleportTask);
+    }
+
     private void handleToggle(Player player) {
         if (!plugin.isModuleEnabled("tptoggle")) {
             player.sendActionBar(mm.deserialize("<red>This module is currently disabled!</red>"));
@@ -256,7 +333,6 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         boolean newState = !currentlyEnabled;
         tptoggleCache.put(uuid, newState);
 
-        // Save asynchronously
         scheduler.runAsync(() -> {
             plugin.getDatabase().updateSafe(
                     "REPLACE INTO tptoggle_data (uuid, tptoggle) VALUES (?, ?)",
@@ -270,20 +346,13 @@ public class TpaManager implements CommandExecutor, TabCompleter {
         ));
     }
 
-    // -----------------------------
-    // Tab Completion
-    // -----------------------------
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!(sender instanceof Player player)) return List.of();
 
         if (args.length == 1) {
-            String partial = args[0].toLowerCase(Locale.ROOT);
-
-            return Bukkit.getOnlinePlayers().stream()
-                    .filter(p -> !p.equals(player)) // exclude self
-                    .map(Player::getName)
-                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(partial))
+            return plugin.getNetworkManager().getNetworkPlayerSuggestions(args[0]).stream()
+                    .filter(name -> !name.equalsIgnoreCase(player.getName()))
                     .sorted()
                     .toList();
         }

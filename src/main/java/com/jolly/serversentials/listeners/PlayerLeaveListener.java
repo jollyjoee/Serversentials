@@ -23,6 +23,7 @@ public class PlayerLeaveListener implements Listener {
     @EventHandler
     public void onPlayerLeave(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        plugin.getNetworkManager().onPlayerQuitServer();
         UUID uuid = player.getUniqueId();
         String worldName = player.getWorld().getName();
         double x = player.getLocation().getX();

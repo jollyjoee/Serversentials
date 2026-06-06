@@ -154,7 +154,9 @@ public class HomeManager implements CommandExecutor, TabCompleter {
                 }
                 String currentServer = plugin.getConfig().getString("server-name", "unknown");
                 if (!currentServer.equalsIgnoreCase(home.server)) {
-                    scheduler.run(player, () -> player.sendActionBar(mm.deserialize("<red>This home is set on another server: <yellow>" + home.server)));
+                    plugin.getNetworkManager().sendPluginMessage(player, "FORWARD_TO_SERVER", home.server, "TELEPORT_JOIN_REG", player.getUniqueId().toString(), home.world, home.x, home.y, home.z, home.yaw, home.pitch);
+                    plugin.getNetworkManager().requestPlayerTransfer(player, player.getName(), home.server);
+                    player.sendActionBar(mm.deserialize("<green>Teleporting to <yellow>" + targetPlayer.getName() + "</yellow>'s home <yellow>" + homeName + "</yellow> (cross-server)..."));
                     return;
                 }
                 scheduler.run(player, () -> {
@@ -194,11 +196,6 @@ public class HomeManager implements CommandExecutor, TabCompleter {
                 return;
             }
 
-            String currentServer = plugin.getConfig().getString("server-name", "unknown");
-            if (!currentServer.equalsIgnoreCase(home.server)) {
-                scheduler.run(player, () -> player.sendActionBar(mm.deserialize("<red>This home is set on another server: <yellow>" + home.server)));
-                return;
-            }
             startTeleportCountdown(player, homeName, home);
         });
     }
@@ -256,6 +253,15 @@ public class HomeManager implements CommandExecutor, TabCompleter {
             }
         }
         scheduler.run(player, () -> {
+            String currentServer = plugin.getConfig().getString("server-name", "unknown");
+            if (!currentServer.equalsIgnoreCase(home.server)) {
+                plugin.getNetworkManager().sendPluginMessage(player, "FORWARD_TO_SERVER", home.server, "TELEPORT_JOIN_REG", player.getUniqueId().toString(), home.world, home.x, home.y, home.z, home.yaw, home.pitch);
+                plugin.getNetworkManager().requestPlayerTransfer(player, player.getName(), home.server);
+                player.sendActionBar(mm.deserialize("<green>Teleporting to home <yellow>" + homeName + "</yellow> (cross-server)..."));
+                homeCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+                return;
+            }
+
             Location loc = new Location(
                     Bukkit.getWorld(home.world),
                     home.x, home.y, home.z,
@@ -263,7 +269,6 @@ public class HomeManager implements CommandExecutor, TabCompleter {
             );
             player.teleportAsync(loc).thenRun(() -> {
                 player.sendActionBar(mm.deserialize("<green>Teleported to home <yellow>" + homeName + "</yellow>!"));
-                // ✅ Update cooldown timestamp after successful teleport
                 homeCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
             });
         });

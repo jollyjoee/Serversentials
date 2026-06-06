@@ -21,6 +21,8 @@ public class Containers implements CommandExecutor, TabCompleter {
     private static Serversentials plugin;
     private final MiniMessage mm = MiniMessage.miniMessage();
     public static final Set<UUID> invseeUsers = new HashSet<>();
+    public static final Map<UUID, String> crossServerInvsee = new java.util.concurrent.ConcurrentHashMap<>();
+    public static final Map<UUID, String> crossServerEchest = new java.util.concurrent.ConcurrentHashMap<>();
     public Containers(Serversentials plugin) {
         this.plugin = plugin;
     }
@@ -96,7 +98,13 @@ public class Containers implements CommandExecutor, TabCompleter {
             if (targetPlayer != null) {
                 player.openInventory(targetPlayer.getEnderChest());
             } else {
-                player.sendActionBar(plugin.mm("<red>Player not found!"));
+                String targetName = args[0];
+                if (plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
+                    plugin.getNetworkManager().forwardToPlayer(player, targetName, "EC_REQUEST", player.getName(), targetName);
+                    player.sendMessage(plugin.mm("<green>Querying " + targetName + "'s ender chest cross-server..."));
+                } else {
+                    player.sendActionBar(plugin.mm("<red>Player not found!"));
+                }
             }
         } else {
             player.openInventory(player.getEnderChest());
@@ -109,12 +117,18 @@ public class Containers implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length > 0) {
-            invseeUsers.add(player.getUniqueId());
             Player targetPlayer = Bukkit.getPlayer(args[0]);
             if (targetPlayer != null) {
+                invseeUsers.add(player.getUniqueId());
                 player.openInventory(targetPlayer.getInventory());
             } else {
-                player.sendActionBar(plugin.mm("<red>Player not found!"));
+                String targetName = args[0];
+                if (plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
+                    plugin.getNetworkManager().forwardToPlayer(player, targetName, "INV_REQUEST", player.getName(), targetName);
+                    player.sendMessage(plugin.mm("<green>Querying " + targetName + "'s inventory cross-server..."));
+                } else {
+                    player.sendActionBar(plugin.mm("<red>Player not found!"));
+                }
             }
         } else {
             player.sendActionBar(plugin.mm("Usage: /invsee <player>"));
@@ -138,7 +152,17 @@ public class Containers implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public @Nullable List<String> onTabComplete(CommandSender sender, Command command, String s, String [] args) {
+    public @Nullable List<String> onTabComplete(CommandSender sender, Command command, String alias, String [] args) {
+        if (!(sender instanceof Player player)) return List.of();
+        String cmd = command.getName().toLowerCase(Locale.ROOT);
+        if (cmd.equals("invsee") || cmd.equals("inv") || cmd.equals("echest") || cmd.equals("ec")) {
+            if (args.length == 1) {
+                return plugin.getNetworkManager().getNetworkPlayerSuggestions(args[0]).stream()
+                        .filter(name -> !name.equalsIgnoreCase(player.getName()))
+                        .sorted()
+                        .toList();
+            }
+        }
         return List.of();
     }
 }

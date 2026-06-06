@@ -237,12 +237,6 @@ public class WarpManager implements CommandExecutor, TabCompleter {
     // Warp process: cooldown, countdown, movement-cancel, teleport & persist last-used
     // -----------------------
     private void beginWarpProcess(Player player, String warpName, Warp warp) {
-        String currentServer = plugin.getConfig().getString("server-name", "unknown");
-        if (!currentServer.equalsIgnoreCase(warp.server)) {
-            player.sendActionBar(mm.deserialize("<red>This warp is set on another server: <yellow>" + warp.server));
-            return;
-        }
-
         UUID uuid = player.getUniqueId();
 
         // 1) get cooldown in seconds (permission-based)
@@ -313,10 +307,18 @@ public class WarpManager implements CommandExecutor, TabCompleter {
     }
 
     private void performWarpTeleport(Player player, String warpName, Warp warp) {
-        // build Location (main thread)
-        Location loc = new Location(Bukkit.getWorld(warp.world), warp.x, warp.y, warp.z, warp.yaw, warp.pitch);
-        player.teleportAsync(loc);
-        player.sendActionBar(mm.deserialize("<green>Warped to <yellow>" + warpName + "</yellow>"));
+        String currentServer = plugin.getConfig().getString("server-name", "unknown");
+        if (currentServer.equalsIgnoreCase(warp.server)) {
+            // build Location (main thread)
+            Location loc = new Location(Bukkit.getWorld(warp.world), warp.x, warp.y, warp.z, warp.yaw, warp.pitch);
+            player.teleportAsync(loc);
+            player.sendActionBar(mm.deserialize("<green>Warped to <yellow>" + warpName + "</yellow>"));
+        } else {
+            // cross-server warp
+            plugin.getNetworkManager().sendPluginMessage(player, "FORWARD_TO_SERVER", warp.server, "TELEPORT_JOIN_REG", player.getUniqueId().toString(), warp.world, warp.x, warp.y, warp.z, warp.yaw, warp.pitch);
+            plugin.getNetworkManager().requestPlayerTransfer(player, player.getName(), warp.server);
+            player.sendActionBar(mm.deserialize("<green>Warping to <yellow>" + warpName + "</yellow> on <yellow>" + warp.server + "</yellow>"));
+        }
         // persist last_used
         long now = System.currentTimeMillis() / 1000L;
         scheduler.runAsync(() -> {

@@ -26,6 +26,8 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
+import java.util.UUID;
 
 public final class Serversentials extends JavaPlugin {
     private static MiniMessage mm;
@@ -33,6 +35,9 @@ public final class Serversentials extends JavaPlugin {
     private static DatabaseManager db;
     private static Scheduler scheduler;
     private static FormatUtility formatUtility;
+    private static NetworkManager networkManager;
+    private static NetworkPacketHandler networkPacketHandler;
+    private static final Map<UUID, String> replyTargets = new java.util.concurrent.ConcurrentHashMap<>();
 
     // Overhauled references for dynamic reloading
     private TpaManager tpaManager;
@@ -74,6 +79,9 @@ public final class Serversentials extends JavaPlugin {
         // ================================
         Metrics metrics = new Metrics(this, 27850);
         scheduler = new Scheduler(this);
+        networkManager = new NetworkManager(this);
+        networkManager.register();
+        networkPacketHandler = new NetworkPacketHandler(this, scheduler);
         formatUtility = new FormatUtility(this);
         HomeManager home = new HomeManager(this, scheduler);
         this.tpaManager = new TpaManager(this, scheduler);
@@ -114,7 +122,7 @@ public final class Serversentials extends JavaPlugin {
         // 🧩 EVENT REGISTRATION
         // ================================
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this, fly, nick, tpaManager, vanish, hide, gen, scheduler, economyManager), this);
-        getServer().getPluginManager().registerEvents(new InvseeListener(), this);
+        getServer().getPluginManager().registerEvents(new InvseeListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerLeaveListener(this, scheduler), this);
         getServer().getPluginManager().registerEvents(new GodProtectionListener(), this);
         getServer().getPluginManager().registerEvents(new TeleportListener(this, scheduler), this);
@@ -128,6 +136,18 @@ public final class Serversentials extends JavaPlugin {
         // ================================
         getCommand("ssreload").setExecutor(new ReloadCommand(this));
         
+        MsgCommand msgCmd = new MsgCommand(this);
+        getCommand("msg").setExecutor(msgCmd);
+        getCommand("msg").setTabCompleter(msgCmd);
+        getCommand("r").setExecutor(msgCmd);
+        getCommand("r").setTabCompleter(msgCmd);
+        getCommand("socialspy").setExecutor(msgCmd);
+        getCommand("socialspy").setTabCompleter(msgCmd);
+        
+        StaffChatCommand scCmd = new StaffChatCommand(this);
+        getCommand("sc").setExecutor(scCmd);
+        getCommand("sc").setTabCompleter(scCmd);
+
         getCommand("fly").setExecutor(fly);
         getCommand("fly").setTabCompleter(fly);
         
@@ -389,8 +409,35 @@ public final class Serversentials extends JavaPlugin {
         return formatUtility;
     }
 
+    public Scheduler getScheduler() {
+        return scheduler;
+    }
+
+    public NetworkManager getNetworkManager() {
+        return networkManager;
+    }
+
+    public NetworkPacketHandler getNetworkPacketHandler() {
+        return networkPacketHandler;
+    }
+
+    public EconomyManager getEconomyManager() {
+        return economyManager;
+    }
+
+    public void setReplyTarget(UUID playerUuid, String senderName) {
+        replyTargets.put(playerUuid, senderName);
+    }
+
+    public String getReplyTarget(UUID playerUuid) {
+        return replyTargets.get(playerUuid);
+    }
+
     @Override
     public void onDisable() {
+        if (networkManager != null) {
+            networkManager.unregister();
+        }
         if (db != null) {
             db.close();
         }

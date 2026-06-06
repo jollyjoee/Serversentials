@@ -77,6 +77,7 @@ modules:
     currency-symbol: "$"
     formatted: true # true = show commas and decimals, false = plain numbers
     decimals: 2 # number of decimal places
+    cross-server-pay: true # Enable sending money to players on other servers on the network
   #---------CHAT FORMATTING---------
   chat:
     enabled: true

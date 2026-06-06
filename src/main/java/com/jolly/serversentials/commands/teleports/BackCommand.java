@@ -24,6 +24,8 @@ public class BackCommand implements CommandExecutor {
         this.scheduler = scheduler;
     }
 
+    private record BackLocation(String server, String world, double x, double y, double z, float yaw, float pitch) {}
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -44,25 +46,19 @@ public class BackCommand implements CommandExecutor {
         UUID uuid = player.getUniqueId();
         String currentServer = plugin.getConfig().getString("server-name", "unknown");
         scheduler.runAsync(() -> {
-            Location backLoc = plugin.getDatabase().querySafe(
+            BackLocation backLoc = plugin.getDatabase().querySafe(
                     "SELECT world, x, y, z, yaw, pitch, server FROM back_data WHERE uuid = ?",
                     rs -> {
                         if (rs.next()) {
-                            String targetServer = rs.getString("server");
-                            if (targetServer != null && !targetServer.equalsIgnoreCase(currentServer)) {
-                                return null;
-                            }
-                            World world = Bukkit.getWorld(rs.getString("world"));
-                            if (world != null) {
-                                return new Location(
-                                        world,
-                                        rs.getDouble("x"),
-                                        rs.getDouble("y"),
-                                        rs.getDouble("z"),
-                                        rs.getFloat("yaw"),
-                                        rs.getFloat("pitch")
-                                );
-                            }
+                            return new BackLocation(
+                                    rs.getString("server"),
+                                    rs.getString("world"),
+                                    rs.getDouble("x"),
+                                    rs.getDouble("y"),
+                                    rs.getDouble("z"),
+                                    rs.getFloat("yaw"),
+                                    rs.getFloat("pitch")
+                            );
                         }
                         return null;
                     },
@@ -70,14 +66,26 @@ public class BackCommand implements CommandExecutor {
             );
 
             if (backLoc == null) {
-                scheduler.run(player, () -> player.sendActionBar(mm.deserialize("<red>No previous location found on this server!")));
+                scheduler.run(player, () -> player.sendActionBar(mm.deserialize("<red>No previous location found!")));
                 return;
             }
 
             scheduler.run(player, () -> {
-                player.teleportAsync(backLoc).thenRun(() -> {
-                    player.sendActionBar(mm.deserialize("<green>Teleported to your previous location!"));
-                });
+                if (backLoc.server() != null && !backLoc.server().equalsIgnoreCase(currentServer)) {
+                    plugin.getNetworkManager().sendPluginMessage(player, "FORWARD_TO_SERVER", backLoc.server(), "TELEPORT_JOIN_REG", player.getUniqueId().toString(), backLoc.world(), backLoc.x(), backLoc.y(), backLoc.z(), backLoc.yaw(), backLoc.pitch());
+                    plugin.getNetworkManager().requestPlayerTransfer(player, player.getName(), backLoc.server());
+                    player.sendActionBar(mm.deserialize("<green>Teleporting to your previous location on <yellow>" + backLoc.server() + "</yellow>..."));
+                } else {
+                    World world = Bukkit.getWorld(backLoc.world());
+                    if (world == null) {
+                        player.sendActionBar(mm.deserialize("<red>World not found on this server: " + backLoc.world()));
+                        return;
+                    }
+                    Location loc = new Location(world, backLoc.x(), backLoc.y(), backLoc.z(), backLoc.yaw(), backLoc.pitch());
+                    player.teleportAsync(loc).thenRun(() -> {
+                        player.sendActionBar(mm.deserialize("<green>Teleported to your previous location!"));
+                    });
+                }
             });
         });
 

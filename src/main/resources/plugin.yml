@@ -161,6 +161,21 @@ commands:
   back:
     description: Teleport to your previous location or death point
     default: false
+  msg:
+    description: Send a private message to a player
+    aliases: [w, tell, pm, message]
+    default: false
+  r:
+    description: Reply to the last private message received
+    aliases: [reply]
+    default: false
+  socialspy:
+    description: Toggle social spy to see others' private messages
+    default: false
+  sc:
+    description: Staff chat channel
+    aliases: [staffchat]
+    default: false
 
 
 permissions:
@@ -347,4 +362,13 @@ permissions:
     default: op
   serversentials.lore:
     description: Allows a player to edit their held item's lore
+    default: op
+  serversentials.msg:
+    description: Allows a player to send private messages
+    default: op
+  serversentials.socialspy:
+    description: Allows viewing private messages between other players
+    default: op
+  serversentials.staffchat:
+    description: Allows using staff chat
     default: op
