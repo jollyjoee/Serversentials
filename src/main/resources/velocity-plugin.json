@@ -1,0 +1,9 @@
+{
+  "id": "serversentials",
+  "name": "Serversentials",
+  "version": "2.0",
+  "author": "Jolly",
+  "description": "Essential network utilities",
+  "main": "com.jolly.serversentials.velocity.ServersentialsVelocity",
+  "dependencies": []
+}

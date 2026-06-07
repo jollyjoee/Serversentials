@@ -48,6 +48,54 @@ public class PlayerJoinListener implements Listener {
         if (pendingLoc != null) {
             scheduler.runLater(() -> player.teleportAsync(pendingLoc), 5L);
         }
+
+        org.bukkit.Location monitorLoc = com.jolly.serversentials.NetworkPacketHandler.pendingMonitorTeleports.remove(player.getUniqueId());
+        if (monitorLoc != null) {
+            scheduler.runLater(() -> {
+                player.setGameMode(org.bukkit.GameMode.SPECTATOR);
+                player.teleportAsync(monitorLoc);
+            }, 5L);
+        }
+
+        // Restore from monitor_data if returning from spectator monitor
+        UUID uuid = player.getUniqueId();
+        scheduler.runAsync(() -> {
+            String currentServer = plugin.getConfig().getString("server-name", "unknown");
+            plugin.getDatabase().querySafe(
+                    "SELECT world, x, y, z, yaw, pitch, gamemode FROM monitor_data WHERE uuid = ? AND server = ?",
+                    rs -> {
+                        if (rs.next()) {
+                            String worldName = rs.getString("world");
+                            double x = rs.getDouble("x");
+                            double y = rs.getDouble("y");
+                            double z = rs.getDouble("z");
+                            float yaw = rs.getFloat("yaw");
+                            float pitch = rs.getFloat("pitch");
+                            String gmName = rs.getString("gamemode");
+
+                            scheduler.run(player, () -> {
+                                org.bukkit.World world = Bukkit.getWorld(worldName);
+                                if (world != null) {
+                                    org.bukkit.Location loc = new org.bukkit.Location(world, x, y, z, yaw, pitch);
+                                    player.teleportAsync(loc);
+                                }
+                                try {
+                                    player.setGameMode(org.bukkit.GameMode.valueOf(gmName));
+                                } catch (Exception ignored) {}
+                                player.sendActionBar(mm.deserialize("<yellow>Stopped monitoring. Location and gamemode restored."));
+                            });
+
+                            // Delete entry
+                            scheduler.runAsync(() -> {
+                                plugin.getDatabase().updateSafe("DELETE FROM monitor_data WHERE uuid = ?", uuid.toString());
+                            });
+                        }
+                        return null;
+                    },
+                    uuid.toString(), currentServer
+            );
+        });
+
         economy.setStartingBalance(player);
         flyCommand.loadFlyStateAsync(player);
         scheduler.runLater(() -> {

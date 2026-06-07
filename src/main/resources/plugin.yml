@@ -1,5 +1,5 @@
 name: Serversentials
-version: '1.5'
+version: '2.0'
 main: com.jolly.serversentials.Serversentials
 api-version: '1.21'
 authors: [ Jolly ]
@@ -176,10 +176,16 @@ commands:
     description: Staff chat channel
     aliases: [staffchat]
     default: false
-
+  whois:
+    description: Lookup a player's real name by their displayname
+    usage: /whois <nickname>
+    default: false
 
 permissions:
   serversentials.reload:
+    default: op
+  serversentials.whois:
+    description: Allows lookup of a player's real name by their displayname
     default: op
   serversentials.fly:
     description: Allows flight

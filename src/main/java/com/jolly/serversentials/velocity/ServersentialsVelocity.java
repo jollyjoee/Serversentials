@@ -62,7 +62,7 @@ public class ServersentialsVelocity {
 
     @Subscribe
     public void onPluginMessage(PluginMessageEvent event) {
-        if (!event.getIdentifier().equals(CHANNEL)) {
+        if (!event.getIdentifier().getId().equalsIgnoreCase("serversentials:channel")) {
             return;
         }
 
@@ -99,10 +99,7 @@ public class ServersentialsVelocity {
                 Optional<Player> targetPlayer = proxy.getPlayer(targetPlayerName);
                 if (targetPlayer.isPresent()) {
                     targetPlayer.get().getCurrentServer().ifPresent(srv -> {
-                        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-                        out.writeUTF(packetSubChannel);
-                        out.write(payload);
-                        srv.sendPluginMessage(CHANNEL, out.toByteArray());
+                        srv.sendPluginMessage(CHANNEL, payload);
                     });
                 }
                 break;
@@ -140,6 +137,13 @@ public class ServersentialsVelocity {
                 String staffMessage = in.readUTF();
                 // Broadcast to all backend servers
                 broadcastToAllServers("BROADCAST_STAFF", staffMessage);
+                break;
+            }
+
+            case "NICK_SYNC": {
+                String playerName = in.readUTF();
+                String nickname = in.readUTF();
+                broadcastToAllServers("NICK_SYNC", playerName + ";" + nickname);
                 break;
             }
         }

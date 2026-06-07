@@ -27,6 +27,8 @@ public class NetworkPacketHandler {
 
     // Pending cross-server teleports: PlayerA UUID -> TargetLocation details
     public static final Map<UUID, Location> pendingTeleports = new ConcurrentHashMap<>();
+    // Pending cross-server monitor teleports: PlayerA UUID -> TargetLocation details
+    public static final Map<UUID, Location> pendingMonitorTeleports = new ConcurrentHashMap<>();
     // Pending cross-server TPA requests: TargetPlayer Name -> SenderPlayer Name
     public static final Map<String, String> pendingTpaRequests = new ConcurrentHashMap<>();
     // Pending cross-server TPAHere requests: TargetPlayer Name -> SenderPlayer Name
@@ -65,13 +67,109 @@ public class NetworkPacketHandler {
                 boolean accepted = in.readBoolean();
                 boolean isHere = in.readBoolean();
 
-                Player sender = Bukkit.getPlayerExact(senderName);
-                if (sender != null) {
-                    if (accepted) {
+                if (accepted) {
+                    String serverName = in.readUTF();
+                    String worldName = in.readUTF();
+                    double x = in.readDouble();
+                    double y = in.readDouble();
+                    double z = in.readDouble();
+                    float yaw = in.readFloat();
+                    float pitch = in.readFloat();
+
+                    Player sender = Bukkit.getPlayerExact(senderName);
+                    if (sender != null) {
                         sender.sendMessage(mm.deserialize("<green>" + targetName + " accepted your teleport request. Teleporting..."));
-                    } else {
+                        plugin.getTpaManager().startCrossServerCountdown(sender, serverName, worldName, x, y, z, yaw, pitch);
+                    }
+                } else {
+                    Player sender = Bukkit.getPlayerExact(senderName);
+                    if (sender != null) {
                         sender.sendMessage(mm.deserialize("<red>" + targetName + " denied your teleport request."));
                     }
+                }
+                break;
+            }
+
+            case "TPAHERE_ACCEPT": {
+                String senderName = in.readUTF();
+                String receiverName = in.readUTF();
+                UUID receiverUUID = UUID.fromString(in.readUTF());
+
+                Player sender = Bukkit.getPlayerExact(senderName);
+                if (sender != null) {
+                    String localServer = plugin.getConfig().getString("server-name", "unknown");
+                    Location loc = sender.getLocation();
+                    pendingTeleports.put(receiverUUID, loc);
+                    plugin.getNetworkManager().requestPlayerTransfer(sender, receiverName, localServer);
+                    sender.sendMessage(mm.deserialize("<green>" + receiverName + " accepted your /tpahere request. Teleporting them to you..."));
+                    plugin.getNetworkManager().forwardToPlayer(sender, receiverName, "TPAHERE_CONFIRM", receiverName, senderName);
+                }
+                break;
+            }
+
+            case "TPAHERE_CONFIRM": {
+                String receiverName = in.readUTF();
+                String senderName = in.readUTF();
+                Player receiver = Bukkit.getPlayerExact(receiverName);
+                if (receiver != null) {
+                    receiver.sendMessage(mm.deserialize("<green>Teleporting to " + senderName + "..."));
+                }
+                break;
+            }
+
+            case "TPO_REQUEST": {
+                String senderName = in.readUTF();
+                String targetName = in.readUTF();
+                UUID senderUUID = UUID.fromString(in.readUTF());
+
+                Player target = Bukkit.getPlayerExact(targetName);
+                if (target != null && target.isOnline()) {
+                    String localServer = plugin.getConfig().getString("server-name", "unknown");
+                    pendingTeleports.put(senderUUID, target.getLocation());
+                    plugin.getNetworkManager().requestPlayerTransfer(target, senderName, localServer);
+                    plugin.getNetworkManager().forwardToPlayer(target, senderName, "TPO_CONFIRM", senderName, target.getName());
+                }
+                break;
+            }
+
+            case "TPO_CONFIRM": {
+                String senderName = in.readUTF();
+                String targetName = in.readUTF();
+                Player sender = Bukkit.getPlayerExact(senderName);
+                if (sender != null) {
+                    sender.sendMessage(mm.deserialize("<green>Teleporting to <yellow>" + targetName + "</yellow>..."));
+                }
+                break;
+            }
+
+            case "TPOHERE_REQUEST": {
+                String senderName = in.readUTF();
+                String targetName = in.readUTF();
+                UUID senderUUID = UUID.fromString(in.readUTF());
+                String serverName = in.readUTF();
+                String worldName = in.readUTF();
+                double x = in.readDouble();
+                double y = in.readDouble();
+                double z = in.readDouble();
+                float yaw = in.readFloat();
+                float pitch = in.readFloat();
+
+                Player target = Bukkit.getPlayerExact(targetName);
+                if (target != null && target.isOnline()) {
+                    plugin.getNetworkManager().sendPluginMessage(target, "FORWARD_TO_SERVER", serverName, "TELEPORT_JOIN_REG", target.getUniqueId().toString(), worldName, x, y, z, yaw, pitch);
+                    plugin.getNetworkManager().requestPlayerTransfer(target, target.getName(), serverName);
+                    target.sendMessage(mm.deserialize("<green>Teleporting to <yellow>" + senderName + "</yellow>..."));
+                    plugin.getNetworkManager().forwardToPlayer(target, senderName, "TPOHERE_CONFIRM_MSG", senderName, target.getName());
+                }
+                break;
+            }
+
+            case "TPOHERE_CONFIRM_MSG": {
+                String senderName = in.readUTF();
+                String targetName = in.readUTF();
+                Player sender = Bukkit.getPlayerExact(senderName);
+                if (sender != null) {
+                    sender.sendMessage(mm.deserialize("<green>Teleported <yellow>" + targetName + "</yellow> to you."));
                 }
                 break;
             }
@@ -95,6 +193,53 @@ public class NetworkPacketHandler {
                         pendingTeleports.put(playerToTeleport, loc);
                     }
                 });
+                break;
+            }
+
+            case "MONITOR_JOIN_REG": {
+                UUID playerToTeleport = UUID.fromString(in.readUTF());
+                String worldName = in.readUTF();
+                double x = in.readDouble();
+                double y = in.readDouble();
+                double z = in.readDouble();
+                float yaw = in.readFloat();
+                float pitch = in.readFloat();
+
+                scheduler.runGlobal(() -> {
+                    org.bukkit.World world = Bukkit.getWorld(worldName);
+                    if (world == null && !Bukkit.getWorlds().isEmpty()) {
+                        world = Bukkit.getWorlds().get(0);
+                    }
+                    if (world != null) {
+                        Location loc = new Location(world, x, y, z, yaw, pitch);
+                        pendingMonitorTeleports.put(playerToTeleport, loc);
+                    }
+                });
+                break;
+            }
+
+            case "MONITOR_REQUEST": {
+                String senderName = in.readUTF();
+                String targetName = in.readUTF();
+                UUID senderUUID = UUID.fromString(in.readUTF());
+
+                Player target = Bukkit.getPlayerExact(targetName);
+                if (target != null && target.isOnline()) {
+                    String localServer = plugin.getConfig().getString("server-name", "unknown");
+                    pendingMonitorTeleports.put(senderUUID, target.getLocation().add(0, 2, 0));
+                    plugin.getNetworkManager().requestPlayerTransfer(target, senderName, localServer);
+                    plugin.getNetworkManager().forwardToPlayer(target, senderName, "MONITOR_CONFIRM", senderName, target.getName());
+                }
+                break;
+            }
+
+            case "MONITOR_CONFIRM": {
+                String senderName = in.readUTF();
+                String targetName = in.readUTF();
+                Player sender = Bukkit.getPlayerExact(senderName);
+                if (sender != null) {
+                    sender.sendActionBar(mm.deserialize("<green>You are now monitoring <yellow>" + targetName + "</yellow>!"));
+                }
                 break;
             }
 

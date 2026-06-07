@@ -18,6 +18,7 @@ public class NetworkManager implements PluginMessageListener {
 
     private final Serversentials plugin;
     private final Set<String> networkPlayers = ConcurrentHashMap.newKeySet();
+    private final Map<String, String> networkNicknames = new ConcurrentHashMap<>();
     private boolean listRequested = false;
 
     public NetworkManager(Serversentials plugin) {
@@ -57,14 +58,17 @@ public class NetworkManager implements PluginMessageListener {
 
     public void onPlayerJoinServer(Player player) {
         if (!listRequested || networkPlayers.isEmpty()) {
-            requestPlayerList(player);
-            listRequested = true;
+            plugin.getScheduler().runLater(player, () -> {
+                requestPlayerList(player);
+                listRequested = true;
+            }, 20L);
         }
     }
 
     public void onPlayerQuitServer() {
         if (Bukkit.getOnlinePlayers().size() <= 1) {
             networkPlayers.clear();
+            networkNicknames.clear();
             listRequested = false;
         }
     }
@@ -106,6 +110,79 @@ public class NetworkManager implements PluginMessageListener {
         sendPluginMessage(player, "PLAYER_TRANSFER_REQ", playerName, targetServer);
     }
 
+    public void broadcastNickSync(String playerName, String nickname) {
+        Player carrier = Bukkit.getOnlinePlayers().stream().findFirst().orElse(null);
+        if (carrier != null) {
+            sendPluginMessage(carrier, "NICK_SYNC", playerName, nickname);
+        }
+    }
+
+    public String stripColorAndFormatting(String input) {
+        if (input == null) return "";
+        String stripped = input.replaceAll("<[^>]*>", "");
+        stripped = stripped.replaceAll("(?i)[&§][0-9a-fk-or]", "");
+        return stripped;
+    }
+
+    public List<String> getNetworkNicknameSuggestions(String prefix) {
+        String lowerPrefix = prefix.toLowerCase();
+        List<String> suggestions = new ArrayList<>();
+        for (String realName : networkPlayers) {
+            String rawNick = networkNicknames.get(realName.toLowerCase());
+            String strippedNick = (rawNick != null) ? stripColorAndFormatting(rawNick) : realName;
+            if (strippedNick.toLowerCase().startsWith(lowerPrefix)) {
+                suggestions.add(strippedNick);
+            }
+        }
+        return suggestions;
+    }
+
+    public List<String> getPlayersWithNickname(String nickname) {
+        String lowerNick = nickname.toLowerCase();
+        List<String> matches = new ArrayList<>();
+        for (String realName : networkPlayers) {
+            if (realName.equalsIgnoreCase(lowerNick)) {
+                if (!matches.contains(realName)) matches.add(realName);
+            }
+            String rawNick = networkNicknames.get(realName.toLowerCase());
+            String strippedNick = (rawNick != null) ? stripColorAndFormatting(rawNick) : realName;
+            if (strippedNick.equalsIgnoreCase(lowerNick)) {
+                if (!matches.contains(realName)) matches.add(realName);
+            }
+        }
+        return matches;
+    }
+
+    public String getRawNickname(String realName) {
+        return networkNicknames.get(realName.toLowerCase());
+    }
+
+    public void syncNicknamesFromDatabase() {
+        if (networkPlayers.isEmpty()) return;
+        plugin.getScheduler().runAsync(() -> {
+            StringBuilder sb = new StringBuilder();
+            List<String> params = new ArrayList<>();
+            for (String name : networkPlayers) {
+                sb.append("?,");
+                params.add(name);
+            }
+            if (sb.length() > 0) {
+                sb.setLength(sb.length() - 1);
+            }
+            String query = "SELECT name, nickname FROM nick_data WHERE name IN (" + sb.toString() + ")";
+            plugin.getDatabase().querySafe(query, rs -> {
+                while (rs.next()) {
+                    String name = rs.getString("name");
+                    String nick = rs.getString("nickname");
+                    if (name != null && nick != null) {
+                        networkNicknames.put(name.toLowerCase(), nick);
+                    }
+                }
+                return null;
+            }, params.toArray());
+        });
+    }
+
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
         if (!channel.equals(CHANNEL)) return;
@@ -122,6 +199,7 @@ public class NetworkManager implements PluginMessageListener {
             case "PLAYER_QUIT": {
                 String name = in.readUTF();
                 networkPlayers.remove(name);
+                networkNicknames.remove(name.toLowerCase());
                 break;
             }
             case "PLAYER_LIST_RESP": {
@@ -131,6 +209,15 @@ public class NetworkManager implements PluginMessageListener {
                     for (String name : rawList.split(",")) {
                         networkPlayers.add(name);
                     }
+                    syncNicknamesFromDatabase();
+                }
+                break;
+            }
+            case "NICK_SYNC": {
+                String raw = in.readUTF();
+                String[] split = raw.split(";", 2);
+                if (split.length == 2) {
+                    networkNicknames.put(split[0].toLowerCase(), split[1]);
                 }
                 break;
             }

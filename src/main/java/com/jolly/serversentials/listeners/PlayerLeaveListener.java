@@ -29,6 +29,9 @@ public class PlayerLeaveListener implements Listener {
         double x = player.getLocation().getX();
         double y = player.getLocation().getY();
         double z = player.getLocation().getZ();
+        float yaw = player.getLocation().getYaw();
+        float pitch = player.getLocation().getPitch();
+        String serverName = plugin.getConfig().getString("server-name", "unknown");
         
         boolean hasPersistentGM = player.hasPermission("serversentials.persistentgamemode");
         String gamemodeName = player.getGameMode().name();
@@ -49,6 +52,15 @@ public class PlayerLeaveListener implements Listener {
                         "REPLACE INTO gamemode_data (uuid, gamemode) VALUES (?, ?)",
                         uuid.toString(),
                         gamemodeName
+                );
+            }
+            if (plugin.isModuleEnabled("teleport.back")) {
+                plugin.getDatabase().updateSafe(
+                        "REPLACE INTO back_data (uuid, world, x, y, z, yaw, pitch, server) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        uuid.toString(),
+                        worldName,
+                        x, y, z, yaw, pitch,
+                        serverName
                 );
             }
         });

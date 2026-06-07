@@ -17,6 +17,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginEnableEvent;
@@ -47,6 +48,7 @@ public final class Serversentials extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        updateConfig();
         mm = MiniMessage.miniMessage();
         config = getConfig();
 
@@ -126,6 +128,7 @@ public final class Serversentials extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerLeaveListener(this, scheduler), this);
         getServer().getPluginManager().registerEvents(new GodProtectionListener(), this);
         getServer().getPluginManager().registerEvents(new TeleportListener(this, scheduler), this);
+        getServer().getPluginManager().registerEvents(new com.jolly.serversentials.listeners.CommandSendListener(this), this);
         
         if (getConfig().getBoolean("modules.chat.enabled", true)) {
             getServer().getPluginManager().registerEvents(new ChatListener(this, vaultHook), this);
@@ -226,6 +229,10 @@ public final class Serversentials extends JavaPlugin {
         getCommand("lore").setExecutor(new LoreCommand(this));
         getCommand("lore").setTabCompleter(new LoreCommand(this));
         
+        com.jolly.serversentials.commands.utilities.Whois whois = new com.jolly.serversentials.commands.utilities.Whois(this);
+        getCommand("whois").setExecutor(whois);
+        getCommand("whois").setTabCompleter(whois);
+        
         getCommand("enchant").setExecutor(ench);
         getCommand("enchant").setTabCompleter(ench);
         
@@ -285,7 +292,8 @@ public final class Serversentials extends JavaPlugin {
         getDatabase().updateSafe("""
         CREATE TABLE IF NOT EXISTS nick_data (
             uuid VARCHAR(36) PRIMARY KEY,
-            nickname TEXT
+            name VARCHAR(64),
+            nickname VARCHAR(128) NOT NULL
         )
         """);
 
@@ -384,9 +392,26 @@ public final class Serversentials extends JavaPlugin {
         )
         """);
 
+        getDatabase().updateSafe("""
+        CREATE TABLE IF NOT EXISTS monitor_data (
+            uuid VARCHAR(36) PRIMARY KEY,
+            world VARCHAR(64) NOT NULL,
+            x DOUBLE NOT NULL,
+            y DOUBLE NOT NULL,
+            z DOUBLE NOT NULL,
+            yaw FLOAT NOT NULL,
+            pitch FLOAT NOT NULL,
+            server VARCHAR(64) NOT NULL,
+            gamemode VARCHAR(16) NOT NULL
+        )
+        """);
+
         // Run migrations
         if (!columnExists("back_data", "server")) {
             getDatabase().updateSafe("ALTER TABLE back_data ADD COLUMN server VARCHAR(64) NOT NULL DEFAULT 'unknown'");
+        }
+        if (!columnExists("nick_data", "name")) {
+            getDatabase().updateSafe("ALTER TABLE nick_data ADD COLUMN name VARCHAR(64)");
         }
 
         getLogger().info("✅ Serversentials fully initialized!");
@@ -407,6 +432,10 @@ public final class Serversentials extends JavaPlugin {
 
     public FormatUtility getFormatUtility() {
         return formatUtility;
+    }
+
+    public TpaManager getTpaManager() {
+        return tpaManager;
     }
 
     public Scheduler getScheduler() {
@@ -449,10 +478,39 @@ public final class Serversentials extends JavaPlugin {
 
     public void reloadPlugin() {
         reloadConfig();
+        updateConfig();
         config = getConfig();
         if (tpaManager != null) tpaManager.reload();
         if (warpManager != null) warpManager.reload();
         if (economyManager != null) economyManager.reload();
+    }
+
+    private void updateConfig() {
+        try {
+            java.io.InputStream defConfigStream = getResource("config.yml");
+            if (defConfigStream == null) return;
+
+            YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(
+                    new java.io.InputStreamReader(defConfigStream, java.nio.charset.StandardCharsets.UTF_8)
+            );
+
+            getConfig().setDefaults(defConfig);
+
+            boolean keysMissing = false;
+            for (String key : defConfig.getKeys(true)) {
+                if (!getConfig().contains(key)) {
+                    keysMissing = true;
+                    break;
+                }
+            }
+            if (keysMissing) {
+                getConfig().options().copyDefaults(true);
+                saveConfig();
+                getLogger().info("⚙️ Updated config.yml with missing configuration keys.");
+            }
+        } catch (Exception e) {
+            getLogger().warning("Failed to update config.yml: " + e.getMessage());
+        }
     }
 
     public static Component mm(String string) {

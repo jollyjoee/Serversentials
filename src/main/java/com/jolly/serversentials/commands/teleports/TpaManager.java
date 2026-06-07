@@ -188,7 +188,7 @@ public class TpaManager implements CommandExecutor, TabCompleter {
 
             senderName = NetworkPacketHandler.pendingTpaHereRequests.remove(receiver.getName().toLowerCase());
             if (senderName != null) {
-                plugin.getNetworkManager().forwardToPlayer(receiver, senderName, "TPAHERE_ACCEPT", senderName, receiver.getName());
+                plugin.getNetworkManager().forwardToPlayer(receiver, senderName, "TPAHERE_ACCEPT", senderName, receiver.getName(), receiver.getUniqueId().toString());
                 receiver.sendMessage(mm.deserialize("<green>You accepted the /tpahere request from <yellow>" + senderName + "</yellow> (cross-server)."));
                 return;
             }

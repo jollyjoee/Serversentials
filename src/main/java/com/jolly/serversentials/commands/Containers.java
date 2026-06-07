@@ -11,6 +11,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -23,6 +24,7 @@ public class Containers implements CommandExecutor, TabCompleter {
     public static final Set<UUID> invseeUsers = new HashSet<>();
     public static final Map<UUID, String> crossServerInvsee = new java.util.concurrent.ConcurrentHashMap<>();
     public static final Map<UUID, String> crossServerEchest = new java.util.concurrent.ConcurrentHashMap<>();
+    public static final Map<UUID, UUID> localInvseeTargets = new java.util.concurrent.ConcurrentHashMap<>();
     public Containers(Serversentials plugin) {
         this.plugin = plugin;
     }
@@ -119,8 +121,7 @@ public class Containers implements CommandExecutor, TabCompleter {
         if (args.length > 0) {
             Player targetPlayer = Bukkit.getPlayer(args[0]);
             if (targetPlayer != null) {
-                invseeUsers.add(player.getUniqueId());
-                player.openInventory(targetPlayer.getInventory());
+                openLocalInvsee(player, targetPlayer, plugin);
             } else {
                 String targetName = args[0];
                 if (plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
@@ -133,6 +134,60 @@ public class Containers implements CommandExecutor, TabCompleter {
         } else {
             player.sendActionBar(plugin.mm("Usage: /invsee <player>"));
         }
+    }
+
+    public static void openLocalInvsee(Player admin, Player target, Serversentials plugin) {
+        Inventory gui = Bukkit.createInventory(null, 54, plugin.mm("<dark_gray>Invsee: " + target.getName()));
+
+        // Populate main inventory (0-35)
+        for (int i = 0; i < 36; i++) {
+            ItemStack item = target.getInventory().getItem(i);
+            if (item != null) gui.setItem(i, item.clone());
+        }
+
+        // Separator slots (36-44)
+        ItemStack pane = new ItemStack(org.bukkit.Material.GRAY_STAINED_GLASS_PANE);
+        org.bukkit.inventory.meta.ItemMeta meta = pane.getItemMeta();
+        meta.displayName(net.kyori.adventure.text.Component.empty());
+        pane.setItemMeta(meta);
+        for (int i = 36; i < 45; i++) {
+            gui.setItem(i, pane);
+        }
+
+        // Armor (45-48)
+        gui.setItem(45, target.getInventory().getHelmet() != null ? target.getInventory().getHelmet().clone() : null);
+        gui.setItem(46, target.getInventory().getChestplate() != null ? target.getInventory().getChestplate().clone() : null);
+        gui.setItem(47, target.getInventory().getLeggings() != null ? target.getInventory().getLeggings().clone() : null);
+        gui.setItem(48, target.getInventory().getBoots() != null ? target.getInventory().getBoots().clone() : null);
+
+        // Offhand (49)
+        gui.setItem(49, target.getInventory().getItemInOffHand() != null ? target.getInventory().getItemInOffHand().clone() : null);
+
+        // Ender Chest shortcut (50)
+        ItemStack echest = new ItemStack(org.bukkit.Material.ENDER_CHEST);
+        org.bukkit.inventory.meta.ItemMeta ecMeta = echest.getItemMeta();
+        ecMeta.displayName(plugin.mm("<purple>Ender Chest"));
+        echest.setItemMeta(ecMeta);
+        gui.setItem(50, echest);
+
+        // Status Info (53)
+        ItemStack status = new ItemStack(org.bukkit.Material.PLAYER_HEAD);
+        org.bukkit.inventory.meta.ItemMeta statMeta = status.getItemMeta();
+        statMeta.displayName(plugin.mm("<gold>Status Info"));
+        List<net.kyori.adventure.text.Component> lore = new ArrayList<>();
+        double health = target.getHealth();
+        double maxHealth = target.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
+        int food = target.getFoodLevel();
+        int xp = target.getLevel();
+        lore.add(plugin.mm("<gray>Health: <red>" + String.format("%.1f", health) + "/" + String.format("%.1f", maxHealth)));
+        lore.add(plugin.mm("<gray>Food Level: <gold>" + food + "/20"));
+        lore.add(plugin.mm("<gray>XP Level: <green>" + xp));
+        statMeta.lore(lore);
+        status.setItemMeta(statMeta);
+        gui.setItem(53, status);
+
+        admin.openInventory(gui);
+        localInvseeTargets.put(admin.getUniqueId(), target.getUniqueId());
     }
 
     private void handleStoneCutter(Player player) {

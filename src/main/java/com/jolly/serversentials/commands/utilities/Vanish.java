@@ -9,6 +9,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.*;
 
@@ -62,6 +63,8 @@ public class Vanish implements CommandExecutor, TabCompleter {
                 }
             }
             vanished.add(player.getUniqueId());
+            player.setMetadata("vanished", new FixedMetadataValue(plugin, true));
+            player.setMetadata("vanish", new FixedMetadataValue(plugin, true));
             player.sendActionBar(mm.deserialize("<gray>You have <green>vanished</green>."));
             addOrUpdateVanishStatus(player, true);
         } else {
@@ -70,6 +73,8 @@ public class Vanish implements CommandExecutor, TabCompleter {
                 if (!other.equals(player)) other.showPlayer(plugin, player);
             }
             vanished.remove(player.getUniqueId());
+            player.removeMetadata("vanished", plugin);
+            player.removeMetadata("vanish", plugin);
             player.sendActionBar(mm.deserialize("<gray>You are now <red>visible</red>."));
             addOrUpdateVanishStatus(player, false);
         }
@@ -101,6 +106,8 @@ public class Vanish implements CommandExecutor, TabCompleter {
                 }
             }
             vanished.add(uuid);
+            target.setMetadata("vanished", new FixedMetadataValue(plugin, true));
+            target.setMetadata("vanish", new FixedMetadataValue(plugin, true));
             player.sendActionBar(mm.deserialize("<yellow>" + target.getName() + "</yellow> is now <green>vanished</green>."));
             target.sendActionBar(mm.deserialize("<gray>You have been vanished by <yellow>" + player.getName() + "</yellow>."));
             addOrUpdateVanishStatus(target, true);
@@ -109,6 +116,8 @@ public class Vanish implements CommandExecutor, TabCompleter {
                 if (!other.equals(target)) other.showPlayer(plugin, target);
             }
             vanished.remove(uuid);
+            target.removeMetadata("vanished", plugin);
+            target.removeMetadata("vanish", plugin);
             player.sendActionBar(mm.deserialize("<yellow>" + target.getName() + "</yellow> is now <red>visible</red>."));
             target.sendActionBar(mm.deserialize("<gray>You have been unvanished by <yellow>" + player.getName() + "</yellow>."));
             addOrUpdateVanishStatus(target, false);
@@ -154,11 +163,19 @@ public class Vanish implements CommandExecutor, TabCompleter {
             boolean finalStatus = vanishedStatus;
             if (finalStatus) {
                 vanished.add(uuid);
+                scheduler.run(player, () -> {
+                    player.setMetadata("vanished", new FixedMetadataValue(plugin, true));
+                    player.setMetadata("vanish", new FixedMetadataValue(plugin, true));
+                });
             } else {
                 vanished.remove(uuid);
+                scheduler.run(player, () -> {
+                    player.removeMetadata("vanished", plugin);
+                    player.removeMetadata("vanish", plugin);
+                });
             }
 
-            // Delay slightly to ensure all players are fully loaded
+            // Hide the joining player from others if the joining player is vanished
             scheduler.runLater(player, () -> {
                 for (Player other : Bukkit.getOnlinePlayers()) {
                     if (other.equals(player)) continue;
@@ -166,25 +183,34 @@ public class Vanish implements CommandExecutor, TabCompleter {
                     Player target = player;
                     Player observer = other;
 
-                    scheduler.run(observer, () -> {
-                        if (finalStatus) {
-                            if (!observer.hasPermission("serversentials.vanish.see")) {
-                                observer.hidePlayer(plugin, target);
-                            }
-                        } else {
-                            observer.showPlayer(plugin, target);
+                    if (finalStatus) {
+                        if (!observer.hasPermission("serversentials.vanish.see")) {
+                            observer.hidePlayer(plugin, target);
                         }
-                    });
+                    } else {
+                        observer.showPlayer(plugin, target);
+                    }
                 }
-            }, 40L); // 2 seconds delay
+            }, 20L);
+
+            // Hide already vanished players from the joining player
+            scheduler.run(player, () -> {
+                for (Player other : Bukkit.getOnlinePlayers()) {
+                    if (other.equals(player)) continue;
+                    if (vanished.contains(other.getUniqueId())) {
+                        if (!player.hasPermission("serversentials.vanish.see")) {
+                            player.hidePlayer(plugin, other);
+                        }
+                    }
+                }
+            });
         });
     }
-
-
 
     public Boolean isVanished(Player player) {
         return vanished.contains(player.getUniqueId());
     }
+
     // ===================================================
     // 🔹 Tab completion
     // ===================================================

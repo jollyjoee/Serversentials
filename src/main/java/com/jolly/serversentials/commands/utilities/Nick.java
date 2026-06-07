@@ -61,7 +61,7 @@ public class Nick implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             String newNick = args[0];
             if (newNick.length() > maxNickLength) {
-                player.sendActionBar(mm.deserialize("<red>Nickname must be"+ maxNickLength + "characters or less!"));
+                player.sendActionBar(mm.deserialize("<red>Nickname must be " + maxNickLength + " characters or less!"));
                 return true;
             }
 
@@ -69,12 +69,14 @@ public class Nick implements CommandExecutor, TabCompleter {
 
             scheduler.runAsync(() -> {
                 plugin.getDatabase().updateSafe(
-                        "REPLACE INTO nick_data (uuid, nickname) VALUES (?, ?)",
+                        "REPLACE INTO nick_data (uuid, name, nickname) VALUES (?, ?, ?)",
                         player.getUniqueId().toString(),
+                        player.getName(),
                         newNick
                 );
 
                 scheduler.run(player, () -> applyNickname(player, displayName));
+                plugin.getNetworkManager().broadcastNickSync(player.getName(), newNick);
             });
 
             player.sendActionBar(mm.deserialize("<green>Your nickname has been changed to <white>" + newNick));
@@ -100,6 +102,7 @@ public class Nick implements CommandExecutor, TabCompleter {
                             "DELETE FROM nick_data WHERE uuid = ?",
                             targetUuid.toString()
                     );
+                    plugin.getNetworkManager().broadcastNickSync(targetName, targetName);
                     if (plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
                         plugin.getNetworkManager().forwardToPlayer(player, targetName, "NICK_REFRESH", targetName);
                     }
@@ -120,7 +123,7 @@ public class Nick implements CommandExecutor, TabCompleter {
             String targetName = args[1];
 
             if (newNick.length() > maxNickLength) {
-                player.sendActionBar(mm.deserialize("<red>Nickname must be" + maxNickLength + "characters or less!"));
+                player.sendActionBar(mm.deserialize("<red>Nickname must be " + maxNickLength + " characters or less!"));
                 return true;
             }
 
@@ -129,11 +132,13 @@ public class Nick implements CommandExecutor, TabCompleter {
                 Component displayName = mm.deserialize(newNick);
                 scheduler.runAsync(() -> {
                     plugin.getDatabase().updateSafe(
-                            "REPLACE INTO nick_data (uuid, nickname) VALUES (?, ?)",
+                            "REPLACE INTO nick_data (uuid, name, nickname) VALUES (?, ?, ?)",
                             target.getUniqueId().toString(),
+                            target.getName(),
                             newNick
                     );
                     scheduler.run(target, () -> applyNickname(target, displayName));
+                    plugin.getNetworkManager().broadcastNickSync(target.getName(), newNick);
                 });
                 player.sendActionBar(mm.deserialize("<green>You changed <white>" + target.getName() + "'s <green>nickname to <white>" + newNick));
                 target.sendActionBar(mm.deserialize("<yellow>Your nickname has been changed to <white>" + newNick + "<yellow> by " + player.getName()));
@@ -141,10 +146,12 @@ public class Nick implements CommandExecutor, TabCompleter {
                 UUID targetUuid = Bukkit.getOfflinePlayer(targetName).getUniqueId();
                 scheduler.runAsync(() -> {
                     plugin.getDatabase().updateSafe(
-                            "REPLACE INTO nick_data (uuid, nickname) VALUES (?, ?)",
+                            "REPLACE INTO nick_data (uuid, name, nickname) VALUES (?, ?, ?)",
                             targetUuid.toString(),
+                            targetName,
                             newNick
                     );
+                    plugin.getNetworkManager().broadcastNickSync(targetName, newNick);
                     if (plugin.getNetworkManager().isOnlineOnNetwork(targetName)) {
                         plugin.getNetworkManager().forwardToPlayer(player, targetName, "NICK_REFRESH", targetName);
                     }
@@ -170,6 +177,7 @@ public class Nick implements CommandExecutor, TabCompleter {
                 player.playerListName(Component.text(player.getName()));
                 player.sendMessage(mm.deserialize("<yellow>Your nickname has been reset."));
             });
+            plugin.getNetworkManager().broadcastNickSync(player.getName(), player.getName());
         });
     }
 
@@ -202,8 +210,16 @@ public class Nick implements CommandExecutor, TabCompleter {
                                 scheduler.run(player, () ->
                                         applyNickname(player, mm.deserialize(nickname))
                                 );
+                                plugin.getNetworkManager().broadcastNickSync(player.getName(), nickname);
+                                return null;
                             }
                         }
+                        // Reset to vanilla if no entry in DB
+                        scheduler.run(player, () -> {
+                            player.displayName(Component.text(player.getName()));
+                            player.playerListName(Component.text(player.getName()));
+                        });
+                        plugin.getNetworkManager().broadcastNickSync(player.getName(), player.getName());
                         return null;
                     },
                     uuid.toString()
@@ -214,7 +230,6 @@ public class Nick implements CommandExecutor, TabCompleter {
     private void applyNickname(Player player, Component nickname) {
         player.displayName(nickname);
         player.playerListName(nickname);
-        //Bukkit.getLogger().info("[Serversentials] Applied nickname for " + player.getName());
     }
 
     @Override

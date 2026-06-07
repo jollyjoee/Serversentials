@@ -26,14 +26,64 @@ public class InvseeListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player admin)) return;
 
-        // 1. Check local invsee
-        if (Containers.invseeUsers.contains(admin.getUniqueId())) {
-            Inventory inv = event.getInventory();
-            if (inv.getType() == InventoryType.PLAYER) {
-                if (!admin.hasPermission("serversentials.invsee.edit")) {
-                    event.setCancelled(true);
-                }
+        // 1. Check local custom invsee
+        java.util.UUID targetUUID = Containers.localInvseeTargets.get(admin.getUniqueId());
+        if (targetUUID != null) {
+            int slot = event.getRawSlot();
+            if (slot < 0 || slot >= 54) {
+                return;
             }
+
+            if (slot >= 36 && slot <= 44) {
+                event.setCancelled(true);
+                return;
+            }
+            if (slot >= 51 && slot <= 53) {
+                event.setCancelled(true);
+                return;
+            }
+
+            Player targetPlayer = Bukkit.getPlayer(targetUUID);
+            if (targetPlayer == null || !targetPlayer.isOnline()) {
+                event.setCancelled(true);
+                admin.closeInventory();
+                return;
+            }
+
+            if (slot == 50) {
+                event.setCancelled(true);
+                admin.closeInventory();
+                admin.openInventory(targetPlayer.getEnderChest());
+                return;
+            }
+
+            if (!admin.hasPermission("serversentials.invsee.edit")) {
+                event.setCancelled(true);
+                return;
+            }
+
+            plugin.getScheduler().runLater(admin, () -> {
+                ItemStack updatedItem = event.getInventory().getItem(slot);
+                int targetSlot = getTargetSlotFromGuiSlot(slot);
+                if (targetSlot != -1) {
+                    Player target = Bukkit.getPlayer(targetUUID);
+                    if (target != null && target.isOnline()) {
+                        if (targetSlot >= 0 && targetSlot < 36) {
+                            target.getInventory().setItem(targetSlot, updatedItem);
+                        } else if (targetSlot == 39) {
+                            target.getInventory().setHelmet(updatedItem);
+                        } else if (targetSlot == 38) {
+                            target.getInventory().setChestplate(updatedItem);
+                        } else if (targetSlot == 37) {
+                            target.getInventory().setLeggings(updatedItem);
+                        } else if (targetSlot == 36) {
+                            target.getInventory().setBoots(updatedItem);
+                        } else if (targetSlot == 40) {
+                            target.getInventory().setItemInOffHand(updatedItem);
+                        }
+                    }
+                }
+            }, 1L);
             return;
         }
 
@@ -104,6 +154,7 @@ public class InvseeListener implements Listener {
         Containers.invseeUsers.remove(player.getUniqueId());
         Containers.crossServerInvsee.remove(player.getUniqueId());
         Containers.crossServerEchest.remove(player.getUniqueId());
+        Containers.localInvseeTargets.remove(player.getUniqueId());
     }
 
     private int getTargetSlotFromGuiSlot(int guiSlot) {
