@@ -32,6 +32,10 @@ public class PayCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!(sender instanceof Player p)) return true;
+        if (!p.hasPermission("serversentials.pay")) {
+            p.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+            return true;
+        }
         if (args.length != 2) {
             p.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.pay-usage")));
             return true;

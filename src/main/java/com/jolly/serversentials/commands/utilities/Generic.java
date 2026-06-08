@@ -70,7 +70,11 @@ public class Generic implements CommandExecutor, TabCompleter {
             player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
             return;
         }
-        if (args.length == 1 && player.hasPermission("serversentials.heal.others")) {
+        if (args.length == 1) {
+            if (!player.hasPermission("serversentials.heal.others")) {
+                player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+                return;
+            }
             Player target = Bukkit.getPlayer(args[0]);
             if (target == null) {
                 player.sendActionBar(mm.deserialize("<red>Player not found!"));
@@ -96,7 +100,11 @@ public class Generic implements CommandExecutor, TabCompleter {
             return;
         }
 
-        if (args.length == 1 && player.hasPermission("serversentials.feed.others")) {
+        if (args.length == 1) {
+            if (!player.hasPermission("serversentials.feed.others")) {
+                player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+                return;
+            }
             Player target = Bukkit.getPlayer(args[0]);
             if (target == null) {
                 player.sendActionBar(mm.deserialize("<red>Player not found!"));
@@ -123,7 +131,11 @@ public class Generic implements CommandExecutor, TabCompleter {
         }
 
         Player target = player;
-        if (args.length == 1 && player.hasPermission("serversentials.god.others")) {
+        if (args.length == 1) {
+            if (!player.hasPermission("serversentials.god.others")) {
+                player.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+                return;
+            }
             target = Bukkit.getPlayer(args[0]);
             if (target == null) {
                 player.sendActionBar(mm.deserialize("<red>Player not found!"));

@@ -31,33 +31,51 @@ public class BalanceCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        Player target = null;
+        OfflinePlayer target = null;
 
         if (args.length == 0) {
-            if (!(sender instanceof Player p)) return true;
-            target = p;
-        } else if (args.length == 1) {
-            OfflinePlayer offline = Bukkit.getOfflinePlayer(args[0]);
-            if (offline == null || offline.getUniqueId() == null) {
-                sender.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.player-not-found")));
+            if (!(sender instanceof Player p)) {
+                sender.sendMessage("Only players can check their own balance!");
                 return true;
             }
-            target = offline.getPlayer() != null ? offline.getPlayer() : (Player) sender;
+            if (!p.hasPermission("serversentials.balance")) {
+                p.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+                return true;
+            }
+            target = p;
+        } else if (args.length == 1) {
+            if (sender instanceof Player p && !p.hasPermission("serversentials.balance.others")) {
+                p.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+                return true;
+            }
+            OfflinePlayer offline = Bukkit.getOfflinePlayer(args[0]);
+            if (offline == null || offline.getUniqueId() == null) {
+                if (sender instanceof Player p) {
+                    p.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.player-not-found")));
+                } else {
+                    sender.sendMessage(mm.deserialize(plugin.prefixMessage("messages.player-not-found")));
+                }
+                return true;
+            }
+            target = offline;
+        } else {
+            sender.sendMessage(mm.deserialize("<red>Usage: /" + label + " [player]"));
+            return true;
         }
 
-        final Player display = target instanceof Player p ? p : null;
-        OfflinePlayer offlineTarget = target instanceof Player p ? p : (OfflinePlayer) target;
-
-        economy.getBalanceAsync(offlineTarget.getUniqueId()).thenAccept(balance -> {
+        final OfflinePlayer finalTarget = target;
+        economy.getBalanceAsync(finalTarget.getUniqueId()).thenAccept(balance -> {
+            String targetName = finalTarget.getName();
+            if (targetName == null) targetName = args.length > 0 ? args[0] : "Unknown";
             String msg = plugin.getConfig().getString("messages.balance-display")
-                    .replace("{player}", offlineTarget.getName())
+                    .replace("{player}", targetName)
                     .replace("{symbol}", economy.getCurrencySymbol())
                     .replace("{balance}", String.format("%.2f", balance));
 
-            if (display != null) {
-                display.sendActionBar(mm.deserialize(msg));
+            if (sender instanceof Player p) {
+                p.sendActionBar(mm.deserialize(msg));
             } else {
-                sender.sendActionBar(mm.deserialize(msg));
+                sender.sendMessage(mm.deserialize(msg));
             }
         });
 

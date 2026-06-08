@@ -31,15 +31,30 @@ public class EconomyCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (!sender.hasPermission("serversentials.economy")) {
+            sender.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+            return true;
+        }
+
         if (args.length != 3) {
             sender.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.economy-usage")));
             return true;
         }
 
         String action = args[0].toLowerCase();
-        Player target = Bukkit.getOfflinePlayer(args[1]).getPlayer();
-        if (target == null) {
-            sender.sendActionBar(mm.deserialize(plugin.prefixMessage(plugin.getConfig().getString("messages.player-not-found"))));
+        if (!action.equals("set") && !action.equals("give") && !action.equals("deduct")) {
+            sender.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.economy-usage")));
+            return true;
+        }
+
+        if (!sender.hasPermission("serversentials.economy." + action)) {
+            sender.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.no-permission")));
+            return true;
+        }
+
+        org.bukkit.OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
+        if (target == null || target.getUniqueId() == null) {
+            sender.sendActionBar(mm.deserialize(plugin.prefixMessage("messages.player-not-found")));
             return true;
         }
 
@@ -52,6 +67,7 @@ public class EconomyCommand implements CommandExecutor, TabCompleter {
         }
 
         UUID targetUUID = target.getUniqueId();
+        String targetName = target.getName() != null ? target.getName() : args[1];
 
         switch (action) {
             case "set" -> economy.setBalanceAsync(targetUUID, amount).thenRun(() ->
@@ -59,21 +75,21 @@ public class EconomyCommand implements CommandExecutor, TabCompleter {
                             .replace("{action}", "Set")
                             .replace("{symbol}", economy.getCurrencySymbol())
                             .replace("{amount}", String.format("%.2f", amount))
-                            .replace("{player}", target.getName())))
+                            .replace("{player}", targetName)))
             );
             case "give" -> economy.addBalanceAsync(targetUUID, amount).thenRun(() ->
                     sender.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.economy-success")
                             .replace("{action}", "Gave")
                             .replace("{symbol}", economy.getCurrencySymbol())
                             .replace("{amount}", String.format("%.2f", amount))
-                            .replace("{player}", target.getName())))
+                            .replace("{player}", targetName)))
             );
             case "deduct" -> economy.deductBalanceAsync(targetUUID, amount).thenRun(() ->
                     sender.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.economy-success")
                             .replace("{action}", "Deducted")
                             .replace("{symbol}", economy.getCurrencySymbol())
                             .replace("{amount}", String.format("%.2f", amount))
-                            .replace("{player}", target.getName())))
+                            .replace("{player}", targetName)))
             );
             default -> sender.sendActionBar(mm.deserialize(plugin.getConfig().getString("messages.economy-usage")));
         }

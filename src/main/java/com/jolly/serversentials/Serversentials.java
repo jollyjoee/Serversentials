@@ -101,6 +101,7 @@ public final class Serversentials extends JavaPlugin {
         this.warpManager = new WarpManager(this, scheduler);
         Item item = new Item(this, scheduler);
         Enchant ench = new Enchant(this, scheduler);
+        com.jolly.serversentials.commands.utilities.SpeedCommand speedCmd = new com.jolly.serversentials.commands.utilities.SpeedCommand(this, scheduler);
         WorldCommands world = new WorldCommands(this, scheduler);
         Teleports tp = new Teleports(this, scheduler);
 
@@ -153,6 +154,11 @@ public final class Serversentials extends JavaPlugin {
 
         getCommand("fly").setExecutor(fly);
         getCommand("fly").setTabCompleter(fly);
+
+        getCommand("flyspeed").setExecutor(speedCmd);
+        getCommand("flyspeed").setTabCompleter(speedCmd);
+        getCommand("walkspeed").setExecutor(speedCmd);
+        getCommand("walkspeed").setTabCompleter(speedCmd);
         
         getCommand("gms").setExecutor(gms);
         getCommand("gms").setTabCompleter(gms);
@@ -498,15 +504,29 @@ public final class Serversentials extends JavaPlugin {
 
             boolean keysMissing = false;
             for (String key : defConfig.getKeys(true)) {
-                if (!getConfig().contains(key)) {
-                    keysMissing = true;
-                    break;
+                if (!getConfig().isSet(key)) {
+                    Object value = defConfig.get(key);
+                    if (!(value instanceof org.bukkit.configuration.ConfigurationSection)) {
+                        keysMissing = true;
+                        getConfig().set(key, value);
+
+                        // Copy block comments if present
+                        java.util.List<String> comments = defConfig.getComments(key);
+                        if (comments != null && !comments.isEmpty()) {
+                            getConfig().setComments(key, comments);
+                        }
+
+                        // Copy inline comments if present
+                        java.util.List<String> inlineComments = defConfig.getInlineComments(key);
+                        if (inlineComments != null && !inlineComments.isEmpty()) {
+                            getConfig().setInlineComments(key, inlineComments);
+                        }
+                    }
                 }
             }
             if (keysMissing) {
-                getConfig().options().copyDefaults(true);
                 saveConfig();
-                getLogger().info("⚙️ Updated config.yml with missing configuration keys.");
+                getLogger().info("⚙️ Updated config.yml with missing configuration keys and comments.");
             }
         } catch (Exception e) {
             getLogger().warning("Failed to update config.yml: " + e.getMessage());

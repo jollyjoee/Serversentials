@@ -14,6 +14,16 @@ commands:
   fly:
     description: Allows flight
     default: false
+  flyspeed:
+    description: Change flight speed (0-10)
+    usage: /flyspeed <0-10> [player]
+    aliases: [fspeed]
+    default: false
+  walkspeed:
+    description: Change walking speed (0-10)
+    usage: /walkspeed <0-10> [player]
+    aliases: [wspeed]
+    default: false
   gms:
     description: Gamemode Survival
     default: false
@@ -190,17 +200,44 @@ permissions:
   serversentials.fly:
     description: Allows flight
     default: op
+  serversentials.fly.others:
+    description: Allows flight for other players
+    default: op
+  serversentials.flyspeed:
+    description: Allows changing flight speed
+    default: op
+  serversentials.flyspeed.others:
+    description: Allows changing flight speed of other players
+    default: op
+  serversentials.walkspeed:
+    description: Allows changing walk speed
+    default: op
+  serversentials.walkspeed.others:
+    description: Allows changing walk speed of other players
+    default: op
   serversentials.gms:
     description: Gamemode Survival
+    default: op
+  serversentials.gms.others:
+    description: Allows gamemode survival for other players
     default: op
   serversentials.gmc:
     description: Gamemode Creative
     default: op
+  serversentials.gmc.others:
+    description: Allows gamemode creative for other players
+    default: op
   serversentials.gmsp:
     description: Gamemode Spectator
     default: op
+  serversentials.gmsp.others:
+    description: Allows gamemode spectator for other players
+    default: op
   serversentials.nick:
     description: Change nickname
+    default: op
+  serversentials.nick.others:
+    description: Allows changing nickname of other players
     default: op
   serversentials.tpa:
     description: Tp to a player
@@ -226,6 +263,9 @@ permissions:
   serversentials.home:
     description: Teleport to home
     default: op
+  serversentials.home.others:
+    description: Allows teleporting to homes of other players
+    default: op
   serversentials.home.cooldown.<#>:
     description: Specify the cooldown per /home command
     default: op
@@ -248,6 +288,9 @@ permissions:
     description: Lists homes
     default: op
   serversentials.echest:
+    default: op
+  serversentials.echest.others:
+    description: Allows viewing enderchest of other players
     default: op
   serversentials.craft:
     default: op

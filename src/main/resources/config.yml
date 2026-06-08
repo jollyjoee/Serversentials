@@ -59,6 +59,8 @@ modules:
   vanish: true # serversentials.vanish || serversentials.vanish.see || serversentials.vanish.others
   gamemode: true # serversentials.gms/gmc/gmsp || serversentials.gms/gmc/gmsp.others
   fly: true # serversentials.fly || serversentials.fly.others
+  flyspeed: true # serversentials.flyspeed || serversentials.flyspeed.others
+  walkspeed: true # serversentials.walkspeed || serversentials.walkspeed.others
   monitor: true # serversentials.monitor
   #---------EXTRAS----------
   heal: true # serversentials.heal || serversentials.heal.others
